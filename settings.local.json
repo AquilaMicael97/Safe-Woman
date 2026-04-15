@@ -1,0 +1,36 @@
+
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import psycopg2; import google.cloud.vision; print\\('dependencias ok'\\)\")",
+      "Bash(psql -U postgres -d cnh_db -c \"\\\\dt\")",
+      "Bash(python -c ':*)",
+      "Bash(python app.py)",
+      "Bash(ls c:/BIOPARK/MariaPenha/*.jpg)",
+      "Bash(pip install:*)",
+      "Bash(python -m uvicorn api:server --host 0.0.0.0 --port 8000)",
+      "Bash(curl -s http://localhost:8000/)",
+      "Bash(python -m pip show uvicorn)",
+      "Bash(python -c \"import uvicorn; print\\('uvicorn ok'\\)\")",
+      "Bash(where python:*)",
+      "Bash(python -m ensurepip)",
+      "Bash(python -m pip install fastapi \"uvicorn[standard]\" python-multipart)",
+      "Bash(python -c \"import uvicorn, fastapi; print\\('OK'\\)\")",
+      "Bash(python -m uvicorn api:server --host 0.0.0.0 --port 8000 --no-access-log)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/)",
+      "Bash(curl -s -X POST http://localhost:8000/api/cadastrar-medida -F foto=@medida_nova.jpg)",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:8000/api/verificar-cnh -F foto=@teste_cnh.jpg)",
+      "Bash(curl -s \"http://localhost:8000/api/verificar-cpf?cpf=287.125.318-80\")",
+      "Bash(ipconfig)",
+      "Bash(pkill -f \"uvicorn api\")",
+      "Bash(taskkill /F /IM python.exe /T)",
+      "Bash(curl -s http://localhost:8000/api/presentes)",
+      "Bash(netstat -ano)",
+      "Bash(kill -9 27436)",
+      "Bash(powershell -Command \"Stop-Process -Id 27436 -Force\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/verificar-cnh -F \"foto=@teste_cnh.jpg\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/saida -F \"foto=@teste_cnh.jpg\")"
+    ]
+  }
+}

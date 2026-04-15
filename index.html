@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Proteção Maria da Penha</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --roxo:    #7b1fa2; --roxo-esc: #4a0072;
+      --verde:   #2e7d32; --amarelo: #e65100;
+      --vermelho:#b71c1c; --cinza:   #37474f;
+      --azul:    #1565c0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f3e5f5; min-height: 100vh;
+      display: flex; justify-content: center;
+    }
+    #app {
+      width: 100%; max-width: 480px; min-height: 100vh;
+      background: #fff; display: flex; flex-direction: column;
+    }
+
+    /* HEADER */
+    .header {
+      background: var(--roxo); color: #fff;
+      padding: 18px 20px 14px; text-align: center;
+    }
+    .header h1 { font-size: 1.15rem; font-weight: 700; }
+    .header p  { font-size: .78rem; opacity: .85; margin-top: 3px; }
+
+    /* SCREENS */
+    .screen { display: none; flex-direction: column; flex: 1; padding: 20px; }
+    .screen.active { display: flex; }
+
+    /* HOME */
+    .home-sub { text-align: center; color: #777; font-size: .85rem; margin-bottom: 24px; }
+    .card-btn {
+      display: flex; align-items: center; gap: 14px;
+      background: #fff; border: 2px solid #e0e0e0; border-radius: 16px;
+      padding: 18px; margin-bottom: 14px; cursor: pointer;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .card-btn:active { transform: scale(.98); }
+    .card-btn .icon {
+      width: 50px; height: 50px; border-radius: 13px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; flex-shrink: 0;
+    }
+    .card-btn.cadastrar .icon { background:#f3e5f5; }
+    .card-btn.verificar  .icon { background:#e8f5e9; }
+    .card-btn.saida      .icon { background:#fff3e0; }
+    .card-btn strong { font-size: .95rem; color: #212121; display: block; }
+    .card-btn span   { font-size: .78rem; color: #757575; margin-top: 2px; display: block; }
+
+    /* FORM SCREENS */
+    .screen-title    { font-size: 1.05rem; font-weight: 700; color: #212121; margin-bottom: 4px; }
+    .screen-subtitle { font-size: .82rem; color: #777; margin-bottom: 20px; }
+
+    .upload-area {
+      border: 2px dashed #ce93d8; border-radius: 14px;
+      padding: 28px 16px; text-align: center; cursor: pointer;
+      background: transparent; transition: background .15s;
+      position: relative; margin-bottom: 16px;
+    }
+    .upload-area:active { background: #f3e5f5; }
+    .upload-area input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .upload-area .cam-icon { font-size: 2.4rem; margin-bottom: 6px; }
+    .upload-area p     { font-size: .88rem; color: #666; }
+    .upload-area small { font-size: .76rem; color: #aaa; }
+
+    #preview-mp, #preview-cnh, #preview-saida {
+      width: 100%; max-height: 200px; object-fit: contain;
+      border-radius: 10px; border: 1px solid #eee;
+      margin-bottom: 16px; display: none;
+    }
+
+    .btn-primary {
+      width: 100%; padding: 15px; border: none; border-radius: 12px;
+      font-size: .95rem; font-weight: 700; color: #fff;
+      background: var(--roxo); cursor: pointer;
+      margin-bottom: 10px; transition: opacity .15s;
+    }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary:active:not(:disabled) { opacity: .82; }
+    .btn-primary.saida-btn { background: #e65100; }
+
+    .divider {
+      display: flex; align-items: center; gap: 8px;
+      color: #bbb; font-size: .78rem; margin: 4px 0 14px;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: #e8e8e8;
+    }
+    .cpf-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .cpf-row input {
+      flex: 1; padding: 13px; border: 2px solid #e0e0e0;
+      border-radius: 11px; font-size: .95rem;
+    }
+    .cpf-row input:focus { outline: none; border-color: var(--roxo); }
+    .cpf-row button {
+      padding: 13px 16px; border: none; border-radius: 11px;
+      background: var(--roxo); color: #fff; font-weight: 700; cursor: pointer;
+      font-size: .9rem;
+    }
+    .cpf-row button.saida { background: #e65100; }
+
+    .link-back {
+      text-align: center; color: var(--roxo);
+      font-size: .88rem; cursor: pointer; padding: 8px; margin-top: 4px;
+    }
+
+    /* LOADING */
+    #screen-loading {
+      position: fixed; inset: 0; background: rgba(255,255,255,.92);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    #screen-loading.active { display: flex; }
+    .spinner {
+      width: 52px; height: 52px;
+      border: 5px solid #e0e0e0; border-top-color: var(--roxo);
+      border-radius: 50%; animation: spin .85s linear infinite;
+      margin-bottom: 18px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #screen-loading p { color: #555; font-size: .95rem; }
+
+    /* RESULTADO */
+    #screen-resultado { padding: 0; min-height: 100vh; }
+    .resultado-hero {
+      padding: 44px 22px 28px; text-align: center; color: #fff;
+    }
+    .resultado-hero .big-icon  { font-size: 4.5rem; line-height: 1; margin-bottom: 12px; }
+    .resultado-hero .nivel-label {
+      font-size: .78rem; font-weight: 700; letter-spacing: 2px;
+      opacity: .85; margin-bottom: 6px; text-transform: uppercase;
+    }
+    .resultado-hero h2 { font-size: 1.4rem; font-weight: 800; line-height: 1.25; }
+    .resultado-hero .urgente-badge {
+      display: inline-block; background: rgba(255,255,255,.25);
+      border-radius: 20px; padding: 4px 14px;
+      font-size: .75rem; font-weight: 700; letter-spacing: 1px;
+      margin-top: 10px; text-transform: uppercase;
+    }
+
+    .resultado-body {
+      background: #fff; border-radius: 22px 22px 0 0;
+      margin-top: -20px; padding: 24px 18px; flex: 1;
+    }
+    .info-card {
+      background: #f7f7f7; border-radius: 10px;
+      padding: 13px 15px; margin-bottom: 10px;
+    }
+    .info-card .label {
+      font-size: .72rem; color: #888; font-weight: 600;
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px;
+    }
+    .info-card .value { font-size: .9rem; color: #212121; font-weight: 600; }
+
+    /* Presença dentro — faixa de alerta adicional */
+    .presenca-alerta {
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+    }
+    .presenca-alerta.agressor { background:#fff3e0; border-left: 4px solid #e65100; }
+    .presenca-alerta.vitima   { background:#fce4ec; border-left: 4px solid #c62828; }
+    .presenca-alerta .pa-title {
+      font-size: .75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .5px; margin-bottom: 5px;
+    }
+    .presenca-alerta.agressor .pa-title { color: #e65100; }
+    .presenca-alerta.vitima   .pa-title { color: #c62828; }
+    .presenca-alerta .pa-nome { font-size: .9rem; font-weight: 600; color: #212121; }
+
+    .medida-card {
+      border-left: 4px solid var(--vermelho);
+      background: #fff5f5; border-radius: 0 10px 10px 0;
+      padding: 12px; margin-bottom: 9px;
+    }
+    .medida-card .mc-title {
+      font-size: .75rem; font-weight: 700; color: var(--vermelho);
+      text-transform: uppercase; margin-bottom: 7px;
+    }
+    .medida-card .mc-row { font-size: .83rem; color: #444; margin-bottom: 3px; }
+    .medida-card .mc-row span { font-weight: 600; color: #212121; }
+
+    #cpf-fallback { margin-top: 6px; }
+
+    /* Badge tipo presença */
+    .badge {
+      display: inline-block; border-radius: 6px; padding: 2px 8px;
+      font-size: .72rem; font-weight: 700; text-transform: uppercase; margin-left: 6px;
+    }
+    .badge.vitima   { background: #fce4ec; color: #c62828; }
+    .badge.agressor { background: #fff3e0; color: #e65100; }
+    .badge.outro    { background: #e8eaf6; color: #3949ab; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div class="header">
+    <h1>Proteção Maria da Penha</h1>
+    <p>Sistema de segurança em eventos</p>
+  </div>
+
+  <!-- ══ HOME ══ -->
+  <div id="screen-home" class="screen active">
+    <p class="home-sub" style="margin-top:6px">Selecione uma opção</p>
+
+    <div class="card-btn cadastrar" onclick="showScreen('cadastrar')">
+      <div class="icon">📋</div>
+      <div>
+        <strong>Cadastrar Medida Protetiva</strong>
+        <span>Registrar documento no sistema</span>
+      </div>
+    </div>
+
+    <div class="card-btn verificar" onclick="showScreen('verificar')">
+      <div class="icon">🔍</div>
+      <div>
+        <strong>Verificar CNH — Entrada</strong>
+        <span>Liberar ou bloquear acesso ao evento</span>
+      </div>
+    </div>
+
+    <div class="card-btn saida" onclick="showScreen('saida')">
+      <div class="icon">🚪</div>
+      <div>
+        <strong>Registrar Saída</strong>
+        <span>Dar baixa na presença ao sair / pagar comanda</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CADASTRAR ══ -->
+  <div id="screen-cadastrar" class="screen">
+    <p class="screen-title">Cadastrar Medida Protetiva</p>
+    <p class="screen-subtitle">Fotografe o documento para registrar no sistema</p>
+
+    <div class="upload-area">
+      <input type="file" accept="image/*" capture="environment" id="foto-mp"
+             onchange="previewImg('foto-mp','preview-mp','btn-cadastrar')">
+      <div class="cam-icon">📄</div>
+      <p>Toque para fotografar</p>
+      <small>ou selecionar da galeria</small>
+    </div>
+    <img id="preview-mp" alt="Prévia" />
+    <button class="btn-primary" id="btn-cadastrar" onclick="enviarMedida()" disabled>
+      Cadastrar Medida
+    </button>
+    <div class="link-back" onclick="showScreen('home')">← Voltar</div>
+  </div>
+
+  <!-- ══ VERIFICAR / ENTRADA ══ -->
+  <div id="screen-verificar" class="screen">
+    <p class="screen-title">Verificar CNH — Entrada</p>
+    <p class="screen-subtitle">Fotografe a CNH do visitante</p>
+
+    <div class="upload-area">
+      <input type="file" accept="image/*" capture="environment" id="foto-cnh"
+             onchange="previewImg('foto-cnh','preview-cnh','btn-verificar')">
+      <div class="cam-icon">🪪</div>
+      <p>Toque para fotografar</p>
+      <small>ou selecionar da galeria</small>
+    </div>
+    <img id="preview-cnh" alt="Prévia" />
+    <button class="btn-primary" id="btn-verificar" onclick="enviarCNH()" disabled>
+      Verificar CNH
+    </button>
+
+    <div class="divider">ou</div>
+    <div class="cpf-row">
+      <input type="text" id="cpf-entrada" placeholder="Digite o CPF"
+             maxlength="14" inputmode="numeric" oninput="mascaraCPF(this)" />
+      <button onclick="verificarCpf('cpf-entrada')">OK</button>
+    </div>
+
+    <div class="link-back" onclick="showScreen('home')">← Voltar</div>
+  </div>
+
+  <!-- ══ SAÍDA ══ -->
+  <div id="screen-saida" class="screen">
+    <p class="screen-title">Registrar Saída</p>
+    <p class="screen-subtitle">Fotografe a CNH ao sair ou pagar a comanda</p>
+
+    <div class="upload-area" style="border-color:#ffcc80;">
+      <input type="file" accept="image/*" capture="environment" id="foto-saida"
+             onchange="previewImg('foto-saida','preview-saida','btn-saida')">
+      <div class="cam-icon">🚪</div>
+      <p>Toque para fotografar a CNH</p>
+      <small>ou selecionar da galeria</small>
+    </div>
+    <img id="preview-saida" alt="Prévia" />
+    <button class="btn-primary saida-btn" id="btn-saida" onclick="enviarSaida()" disabled>
+      Confirmar Saída
+    </button>
+
+    <div class="divider">ou</div>
+    <div class="cpf-row">
+      <input type="text" id="cpf-saida" placeholder="Digite o CPF"
+             maxlength="14" inputmode="numeric" oninput="mascaraCPF(this)" />
+      <button class="saida" onclick="saidaPorCpf()">Sair</button>
+    </div>
+
+    <div class="link-back" onclick="showScreen('home')">← Voltar</div>
+  </div>
+
+  <!-- ══ LOADING ══ -->
+  <div id="screen-loading">
+    <div class="spinner"></div>
+    <p id="loading-msg">Processando...</p>
+  </div>
+
+  <!-- ══ RESULTADO ══ -->
+  <div id="screen-resultado" class="screen">
+    <div class="resultado-hero" id="resultado-hero">
+      <div class="big-icon" id="res-icon"></div>
+      <div class="nivel-label" id="res-nivel-label"></div>
+      <h2 id="res-titulo"></h2>
+      <div class="urgente-badge" id="res-urgente" style="display:none">
+        ⚡ CONTRAPARTE PRESENTE NO LOCAL
+      </div>
+    </div>
+    <div class="resultado-body">
+      <div id="res-presenca-cards"></div>
+      <div id="res-info-cards"></div>
+      <div id="res-medidas"></div>
+      <div id="cpf-fallback" style="display:none">
+        <p style="font-size:.82rem;color:#666;margin-bottom:8px">
+          CPF não lido. Digite manualmente:
+        </p>
+        <div class="cpf-row">
+          <input type="text" id="cpf-fallback-input" placeholder="000.000.000-00"
+                 maxlength="14" inputmode="numeric" oninput="mascaraCPF(this)" />
+          <button onclick="verificarCpf('cpf-fallback-input')">OK</button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="showScreen('home')" style="margin-top:14px">
+        Nova verificação
+      </button>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<script>
+  // ── Navegação ────────────────────────────────────────────────────────────
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('screen-' + id);
+    if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
+  }
+
+  function setLoading(show, msg) {
+    document.getElementById('screen-loading').classList.toggle('active', show);
+    document.getElementById('loading-msg').textContent = msg || 'Processando...';
+  }
+
+  // ── Preview ──────────────────────────────────────────────────────────────
+  function previewImg(inputId, imgId, btnId) {
+    const file = document.getElementById(inputId).files[0];
+    if (!file) return;
+    const img = document.getElementById(imgId);
+    img.src = URL.createObjectURL(file);
+    img.style.display = 'block';
+    document.getElementById(btnId).disabled = false;
+  }
+
+  // ── Máscara CPF ──────────────────────────────────────────────────────────
+  function mascaraCPF(el) {
+    let v = el.value.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 9)      v = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    else if (v.length > 6) v = v.replace(/^(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+    else if (v.length > 3) v = v.replace(/^(\d{3})(\d{0,3})/, '$1.$2');
+    el.value = v;
+  }
+
+  // ── Envios ───────────────────────────────────────────────────────────────
+  async function enviarMedida() {
+    const file = document.getElementById('foto-mp').files[0];
+    if (!file) return;
+    setLoading(true, 'Lendo medida protetiva...');
+    const form = new FormData();
+    form.append('foto', file);
+    try {
+      const data = await fetch('/api/cadastrar-medida', { method:'POST', body:form })
+                         .then(r => r.json());
+      setLoading(false);
+      renderCadastro(data);
+    } catch { setLoading(false); renderErro('Falha na conexão.'); }
+  }
+
+  async function enviarCNH() {
+    const file = document.getElementById('foto-cnh').files[0];
+    if (!file) return;
+    setLoading(true, 'Verificando CNH...');
+    const form = new FormData();
+    form.append('foto', file);
+    try {
+      const data = await fetch('/api/verificar-cnh', { method:'POST', body:form })
+                         .then(r => r.json());
+      setLoading(false);
+      renderVerificacao(data);
+    } catch { setLoading(false); renderErro('Falha na conexão.'); }
+  }
+
+  async function verificarCpf(inputId) {
+    const cpf = document.getElementById(inputId).value.trim();
+    if (cpf.replace(/\D/g,'').length < 11) { alert('CPF incompleto.'); return; }
+    setLoading(true, 'Verificando CPF...');
+    try {
+      const data = await fetch('/api/verificar-cpf?cpf=' + encodeURIComponent(cpf))
+                         .then(r => r.json());
+      setLoading(false);
+      renderVerificacao(data);
+    } catch { setLoading(false); renderErro('Falha na conexão.'); }
+  }
+
+  async function enviarSaida() {
+    const file = document.getElementById('foto-saida').files[0];
+    if (!file) return;
+    setLoading(true, 'Registrando saída...');
+    const form = new FormData();
+    form.append('foto', file);
+    try {
+      const data = await fetch('/api/saida', { method:'POST', body:form })
+                         .then(r => r.json());
+      setLoading(false);
+      renderSaida(data);
+    } catch { setLoading(false); renderErro('Falha na conexão.'); }
+  }
+
+  async function saidaPorCpf() {
+    const cpf = document.getElementById('cpf-saida').value.trim();
+    if (cpf.replace(/\D/g,'').length < 11) { alert('CPF incompleto.'); return; }
+    setLoading(true, 'Registrando saída...');
+    try {
+      const data = await fetch('/api/saida-cpf?cpf=' + encodeURIComponent(cpf), { method:'POST' })
+                         .then(r => r.json());
+      setLoading(false);
+      renderSaida(data);
+    } catch { setLoading(false); renderErro('Falha na conexão.'); }
+  }
+
+  // ── Renders ──────────────────────────────────────────────────────────────
+  const NIVEL = {
+    'vermelho-urgente': { bg:'#7b0000', icon:'🚨', label:'PERIGO IMEDIATO',   titulo:'AGRESSOR + VÍTIMA NO LOCAL' },
+    'vermelho':         { bg:'#b71c1c', icon:'🚫', label:'Acesso Negado',     titulo:'AGRESSOR IDENTIFICADO' },
+    'amarelo-urgente':  { bg:'#bf360c', icon:'⚠️', label:'ATENÇÃO URGENTE',   titulo:'VÍTIMA — AGRESSOR PRESENTE' },
+    'amarelo':          { bg:'#e65100', icon:'⚠️', label:'Atenção',           titulo:'VÍTIMA CADASTRADA' },
+    'verde':            { bg:'#2e7d32', icon:'✅', label:'Acesso Liberado',   titulo:'SEM RESTRIÇÕES' },
+    'cinza':            { bg:'#37474f', icon:'❓', label:'CPF não lido',      titulo:'VERIFICAÇÃO MANUAL' },
+  };
+
+  function renderVerificacao(data) {
+    if (data.status === 'erro') { renderErro(data.mensagem); return; }
+
+    const cfg  = NIVEL[data.nivel] || NIVEL.cinza;
+    const hero = document.getElementById('resultado-hero');
+    hero.style.background = cfg.bg;
+    document.getElementById('res-icon').textContent        = cfg.icon;
+    document.getElementById('res-nivel-label').textContent = cfg.label;
+    document.getElementById('res-titulo').textContent      = cfg.titulo;
+
+    // Badge de urgência
+    const urgBadge = document.getElementById('res-urgente');
+    urgBadge.style.display = data.urgente ? 'inline-block' : 'none';
+
+    // Cards de contraparte presente (urgência)
+    let presHTML = '';
+    if (data.vitimas_dentro && data.vitimas_dentro.length) {
+      data.vitimas_dentro.forEach(v => {
+        presHTML += `<div class="presenca-alerta vitima">
+          <div class="pa-title">Vítima atualmente no local</div>
+          <div class="pa-nome">${v.nome} <small style="color:#888">${v.processo}</small></div>
+        </div>`;
+      });
+    }
+    if (data.agressores_dentro && data.agressores_dentro.length) {
+      data.agressores_dentro.forEach(a => {
+        presHTML += `<div class="presenca-alerta agressor">
+          <div class="pa-title">Agressor atualmente no local</div>
+          <div class="pa-nome">${a.nome} <small style="color:#888">${a.processo}</small></div>
+        </div>`;
+      });
+    }
+    document.getElementById('res-presenca-cards').innerHTML = presHTML;
+
+    // Info cards
+    let infoHTML = '';
+    if (data.nome)            infoHTML += infoCard('Nome', data.nome);
+    if (data.cpf)             infoHTML += infoCard('CPF',  data.cpf);
+    if (data.data_nascimento) infoHTML += infoCard('Nascimento', data.data_nascimento);
+    if (data.mensagem)        infoHTML += infoCard('Situação', data.mensagem);
+    document.getElementById('res-info-cards').innerHTML = infoHTML;
+
+    // Medidas ativas
+    let medHTML = '';
+    if (data.medidas_ativas && data.medidas_ativas.length) {
+      medHTML += `<p style="font-size:.74rem;font-weight:700;color:#b71c1c;
+        text-transform:uppercase;margin:4px 0 8px">Medidas Protetivas Ativas</p>`;
+      data.medidas_ativas.forEach(m => {
+        medHTML += `<div class="medida-card">
+          <div class="mc-title">Processo ${m.processo}</div>
+          <div class="mc-row">Vítima: <span>${m.vitima}</span></div>
+          <div class="mc-row">Emissão: <span>${m.data_emissao||'—'}</span> &nbsp;|&nbsp; Vara: <span>${m.vara||'—'}</span></div>
+        </div>`;
+      });
+    }
+    document.getElementById('res-medidas').innerHTML = medHTML;
+
+    // Fallback CPF manual
+    document.getElementById('cpf-fallback').style.display =
+      data.nivel === 'cinza' ? 'block' : 'none';
+
+    showScreen('resultado');
+  }
+
+  function renderCadastro(data) {
+    if (data.status === 'erro') { renderErro(data.mensagem); return; }
+    const hero = document.getElementById('resultado-hero');
+    hero.style.background = data.ja_existia ? '#546e7a' : '#1565c0';
+    document.getElementById('res-icon').textContent        = data.ja_existia ? '⚠️' : '✅';
+    document.getElementById('res-nivel-label').textContent = data.ja_existia ? 'Já cadastrada' : 'Cadastro realizado';
+    document.getElementById('res-titulo').textContent      = data.ja_existia ? 'Medida já estava no sistema' : 'Medida registrada com sucesso';
+    document.getElementById('res-urgente').style.display   = 'none';
+    document.getElementById('res-presenca-cards').innerHTML = '';
+    document.getElementById('res-info-cards').innerHTML =
+      infoCard('Processo', data.numero_processo) +
+      infoCard('Vítima', data.nome_vitima) +
+      infoCard('Agressor', data.nome_agressor) +
+      (data.cpf_agressor && data.cpf_agressor !== 'Não encontrado'
+        ? infoCard('CPF do agressor', data.cpf_agressor) : '') +
+      infoCard('Vara', data.vara);
+    document.getElementById('res-medidas').innerHTML = '';
+    document.getElementById('cpf-fallback').style.display  = 'none';
+    showScreen('resultado');
+  }
+
+  function renderSaida(data) {
+    if (data.status === 'erro') { renderErro(data.mensagem); return; }
+
+    const tipoBadge = {
+      vitima:   '<span class="badge vitima">Vítima</span>',
+      agressor: '<span class="badge agressor">Agressor</span>',
+      outro:    '<span class="badge outro">Visitante</span>',
+    };
+
+    const hero = document.getElementById('resultado-hero');
+    hero.style.background = '#2e7d32';
+    document.getElementById('res-icon').textContent        = '👋';
+    document.getElementById('res-nivel-label').textContent = 'Saída registrada';
+    document.getElementById('res-titulo').textContent      = 'Saída confirmada';
+    document.getElementById('res-urgente').style.display   = 'none';
+    document.getElementById('res-presenca-cards').innerHTML = '';
+    document.getElementById('res-info-cards').innerHTML =
+      infoCard('Nome',    data.nome + (tipoBadge[data.tipo] || '')) +
+      infoCard('CPF',     data.cpf) +
+      infoCard('Entrada', new Date(data.entrada_em).toLocaleString('pt-BR'));
+    document.getElementById('res-medidas').innerHTML = '';
+    document.getElementById('cpf-fallback').style.display  = 'none';
+    showScreen('resultado');
+  }
+
+  function renderErro(msg) {
+    const hero = document.getElementById('resultado-hero');
+    hero.style.background = '#4e342e';
+    document.getElementById('res-icon').textContent        = '❌';
+    document.getElementById('res-nivel-label').textContent = 'Erro';
+    document.getElementById('res-titulo').textContent      = 'Não foi possível processar';
+    document.getElementById('res-urgente').style.display   = 'none';
+    document.getElementById('res-presenca-cards').innerHTML = '';
+    document.getElementById('res-info-cards').innerHTML    = infoCard('Motivo', msg);
+    document.getElementById('res-medidas').innerHTML       = '';
+    document.getElementById('cpf-fallback').style.display  = 'none';
+    showScreen('resultado');
+  }
+
+  function infoCard(label, value) {
+    if (!value || value === 'Não encontrado' || value === 'Não identificada') return '';
+    return `<div class="info-card">
+      <div class="label">${label}</div>
+      <div class="value">${value}</div>
+    </div>`;
+  }
+</script>
+</body>
+</html>
