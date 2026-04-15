@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "meu-projeto-visao-cnh",
+  "private_key_id": "64f4359c2e8f632aa6f84254cb839ad99aac1270",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDK7zeZ/0z4BT29\noUFyvwwZj0oRyq/h/u12FbjsykczXXunLNx0FJuWilMpulLwlAADXxx4tmiGhhnK\nkEwaxdz5yC165edXR6uAAgh4JQd1bZeaSqejE2DIA3/jOgHH07Zl/FP/eFq2r1BV\n+K4PsT2JGDjMwWXJqU79xKkjVby5JKhCyUiIDfLGRLdFXiO+ZT4+EBPNXtIX9eMx\nABBxdnYfzrtS6yMKlxqAXlpv9OgSeVMWWTxw3e1FZIElxb4ggbqddWbBWxztxWDt\ny7QQkTq3OqIjgbVjCaS5gsCRyzssUkrbT4gFaAoKAD3ftp/EMK25fSbc+Bd5r7jr\nSB1t95+RAgMBAAECggEAJqDwiYzSXufIf99BMRFywS7IX6igYDmBhBfQcqpycTGb\nRxBACoydrUM5X1kLTqYtdnbVWZkHPowqPqfHBNWjIZzcI2e96JxI5f39FLmfuNea\noxEQ5fbbVldsMZmqGxqOvs0QRDHpupqWhTboEy6e0wjcTwWFVaS315BmzcYVPXyI\n2I52+HUQ4EANrw8WDurAcJhbnVHxuKtzXJdl5sQJhmLS0ChohayyQ0eBnc2umxuT\n4nX7vympBFwie9Y/w7+ygx3NYsAC+vSFd20In1WejTC1sn5s3hhcKMhjV2/5v1YD\nDrg3lrxndBXWk+e9uJB6ekby+txTHIWtbsCBNZoK0QKBgQD0vJCzsYzTqV7vz6Si\nzwt76p2hlenbyQ4dgynVcpdvIHyE4KZw9iLPWVHzM9n/0BtD5zOyNrKXVzrmkvQi\n9p9DdK05MjawdVU64VLeFQQlKa39XJno06CstadZ66cjjmiua2Y6FgpxHG2zxc69\nYsLJBYno2jVnfocmRuWs/ZH0pQKBgQDURiXgO9toQ4+H0mHA1mFithiKBxPLTdWx\nR7/kuMXHzet68ivkapOcJks9px3AVGGRjbXW89CWgncIbFjo1fbwqxBHUn6UA+OH\noJpoRQLwWijKY0s3UgwlnCHoogJ+2hCNTFJ9LOiKnWQGcYYrt23KNxyl/qup0/J1\nstpn8O+PfQKBgQCfg/hc5zD/FLoIXLLWW1UE45ryox/WXWmR2tf9g78oc2g1w6c4\noXV26KT9e6JvlljvHVcYpYYqFnURrF7sGwsbkIUHbq8uvItc4Vh93/zfrBb3uM+o\nbaegapY1id9a0YtxhBcRbSRJLVpjfl6OGj0TgUSuPOvqFRJJ5JP2+R+U8QKBgQCs\nocfXzpYm+xrVSKE7JJ3am2Dlj8/nPQuWu1Ux+5rNXYguWpibkJkvGm2CXFBzw6v9\npZPGlk6CuON5NDQyVyAWpef9OPe8BFWcTV6Fgepb8dbOkWXwPYenZoylFmyVIV7o\nqrNDHayYXlukadrF3s0o8R0ZWj3dRYMfeS7p7SXGOQKBgQC0k620Ox+eptVm+6hW\nO3fsrUSa5/BaTWp03tMz6irwIG0cdFcczAjRInSzwzruHgRlYU9YFhEUf9akHt/a\n4VFcs641UZVX77UmULa6Qajnbke4NYYfSfOySmFXYcxOYmmqeXdYbaf0y1jttGCN\nzkihHqTP1OIAixTaavN9xdo+kQ==\n-----END PRIVATE KEY-----\n",
+  "client_email": "visao-api-service@meu-projeto-visao-cnh.iam.gserviceaccount.com",
+  "client_id": "102846116346178699641",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/visao-api-service%40meu-projeto-visao-cnh.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
