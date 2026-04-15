@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Acesso Administrativo — Proteção Maria da Penha</title>
+  <link rel="stylesheet" href="/static/login.css" />
+</head>
+<body>
+
+<div class="login-wrapper">
+
+  <div class="login-logo">
+    <span class="logo-icon">🛡️</span>
+    <h1>Proteção Maria da Penha</h1>
+    <p>Painel Administrativo</p>
+  </div>
+
+  <div class="login-card">
+    <h2>Entrar como administrador</h2>
+    <p class="subtitle">Acesso restrito. Insira suas credenciais.</p>
+
+    <form id="form-login" onsubmit="fazerLogin(event)" autocomplete="off">
+
+      <div class="field">
+        <label for="input-usuario">Usuário</label>
+        <input id="input-usuario" type="text" placeholder="Digite o usuário"
+               autocomplete="username" required />
+      </div>
+
+      <div class="field">
+        <label for="input-senha">Senha</label>
+        <input id="input-senha" type="password" placeholder="••••••••••"
+               autocomplete="current-password" required />
+      </div>
+
+      <button class="btn-entrar" id="btn-entrar" type="submit">
+        <span class="btn-text">Entrar no painel</span>
+        <span class="btn-spinner"></span>
+      </button>
+
+      <div class="msg-erro" id="msg-erro">
+        ⚠️ <span id="erro-texto">Usuário ou senha incorretos.</span>
+      </div>
+
+    </form>
+  </div>
+
+  <div class="link-voltar">
+    <a href="/">← Voltar à portaria</a>
+  </div>
+
+</div>
+
+<script>
+  // Se já estiver autenticado, vai direto pro painel
+  if (sessionStorage.getItem('admin_token')) {
+    window.location.replace('/admin');
+  }
+
+  async function fazerLogin(e) {
+    e.preventDefault();
+
+    const usuario = document.getElementById('input-usuario').value.trim();
+    const senha   = document.getElementById('input-senha').value;
+    const btn     = document.getElementById('btn-entrar');
+    const erro    = document.getElementById('msg-erro');
+
+    if (!usuario || !senha) return;
+
+    btn.classList.add('loading');
+    btn.disabled = true;
+    erro.classList.remove('visible');
+
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, senha }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.token) {
+        sessionStorage.setItem('admin_token', data.token);
+        window.location.replace('/admin');
+      } else {
+        document.getElementById('erro-texto').textContent =
+          data.detail || 'Usuário ou senha incorretos.';
+        erro.classList.add('visible');
+      }
+
+    } catch {
+      document.getElementById('erro-texto').textContent = 'Erro de conexão. Tente novamente.';
+      erro.classList.add('visible');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

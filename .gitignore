@@ -1,0 +1,18 @@
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Configurações locais do Claude Code
+settings.local.json
+
+# Credenciais e chaves (NUNCA subir)
+chave.json
+
+# Logs
+*.log
+
+# Imagens de teste local
+cnh2.jpg
+teste_cnh.jpg
+medida_nova.jpg

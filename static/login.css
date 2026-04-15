@@ -1,0 +1,163 @@
+/* ═══════════════════════════════════════════════════
+   LOGIN ADMIN — Proteção Maria da Penha  |  login.css
+   ═══════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --roxo:     #7b1fa2;
+  --roxo-esc: #4a0072;
+  --roxo-cl:  #f3e5f5;
+  --erro:     #b71c1c;
+  --erro-bg:  #ffebee;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(145deg, #4a0072 0%, #7b1fa2 50%, #9c27b0 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-wrapper {
+  width: 100%;
+  max-width: 380px;
+}
+
+/* Logo / cabeçalho */
+.login-logo {
+  text-align: center;
+  margin-bottom: 32px;
+  color: #fff;
+}
+.login-logo .logo-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 12px;
+  display: block;
+}
+.login-logo h1 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -.3px;
+}
+.login-logo p {
+  font-size: .8rem;
+  opacity: .7;
+  margin-top: 4px;
+}
+
+/* Card do formulário */
+.login-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px 28px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+.login-card h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #212121;
+  margin-bottom: 6px;
+}
+.login-card .subtitle {
+  font-size: .8rem;
+  color: #888;
+  margin-bottom: 28px;
+}
+
+/* Campos */
+.field {
+  margin-bottom: 16px;
+}
+.field label {
+  display: block;
+  font-size: .78rem;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.field input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 11px;
+  font-size: .95rem;
+  color: #212121;
+  transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+.field input:focus {
+  border-color: var(--roxo);
+  box-shadow: 0 0 0 3px rgba(123,31,162,.1);
+}
+
+/* Botão entrar */
+.btn-entrar {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 12px;
+  background: var(--roxo);
+  color: #fff;
+  font-size: .95rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity .15s, transform .1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-entrar:hover   { opacity: .9; }
+.btn-entrar:active  { transform: scale(.98); }
+.btn-entrar:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Spinner dentro do botão */
+.btn-spinner {
+  width: 18px; height: 18px;
+  border: 3px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: none;
+}
+.btn-entrar.loading .btn-spinner { display: block; }
+.btn-entrar.loading .btn-text    { display: none; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Mensagem de erro */
+.msg-erro {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: var(--erro-bg);
+  color: var(--erro);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: .83rem;
+  font-weight: 600;
+  margin-top: 14px;
+}
+.msg-erro.visible { display: flex; }
+
+/* Link voltar */
+.link-voltar {
+  text-align: center;
+  margin-top: 20px;
+}
+.link-voltar a {
+  font-size: .8rem;
+  color: rgba(255,255,255,.65);
+  text-decoration: none;
+  transition: color .15s;
+}
+.link-voltar a:hover { color: #fff; }
