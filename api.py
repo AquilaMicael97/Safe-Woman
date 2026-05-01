@@ -6,7 +6,8 @@ import secrets
 import pathlib
 import tempfile
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
+if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
 sys.stdout.reconfigure(encoding="utf-8")
 
 import app as ocr
@@ -21,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse
 # ─────────────────────────────────────────────
 
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASS = os.environ.get("ADMIN_PASS", "safewoman@2025")
+ADMIN_PASS = os.environ.get("ADMIN_PASS", "admin123")
 
 # Sessões ativas: token -> timestamp de expiração
 _sessoes_admin: dict = {}
@@ -42,6 +43,8 @@ def _requer_admin(
 
 server = FastAPI(title="Maria Penha - Portaria")
 
+BASE_DIR = pathlib.Path(__file__).resolve().parent
+
 
 # ─────────────────────────────────────────────
 #  STARTUP
@@ -57,11 +60,15 @@ def startup():
 #  STATIC FILES + HOME
 # ─────────────────────────────────────────────
 
-server.mount("/static", StaticFiles(directory="static"), name="static")
+server.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 @server.get("/")
 async def root():
-    return FileResponse("static/index.html")
+    path = BASE_DIR / "static" / "index.html"
+    try:
+        return FileResponse(str(path))
+    except Exception as e:
+        return JSONResponse({"erro": str(e), "path": str(path), "existe": path.exists()})
 
 
 # ─────────────────────────────────────────────
@@ -352,12 +359,12 @@ async def listar_presentes():
 
 @server.get("/login")
 async def login_page():
-    return FileResponse("static/login.html")
+    return FileResponse(str(BASE_DIR / "static" / "login.html"))
 
 
 @server.get("/admin")
 async def admin_page():
-    return FileResponse("static/admin.html")
+    return FileResponse(str(BASE_DIR / "static" / "admin.html"))
 
 
 @server.post("/api/admin/login")
@@ -449,17 +456,36 @@ async def admin_stats(token: str = Depends(_requer_admin)):
 
 
 @server.get("/api/admin/historico")
-async def admin_historico(token: str = Depends(_requer_admin)):
-    """Histórico completo de entradas e saídas do dia atual."""
+async def admin_historico(
+    token: str = Depends(_requer_admin),
+    data_inicio: str = None,
+    data_fim: str = None,
+):
+    """Histórico de entradas e saídas. Aceita filtros data_inicio e data_fim (YYYY-MM-DD)."""
     try:
         conn = ocr.conectar()
         cur  = conn.cursor()
-        cur.execute("""
-            SELECT cpf, nome, tipo, entrada_em, saida_em
-            FROM   presencas
-            WHERE  entrada_em::date = CURRENT_DATE
-            ORDER  BY entrada_em DESC
-        """)
+        if data_inicio and data_fim:
+            cur.execute("""
+                SELECT cpf, nome, tipo, entrada_em, saida_em
+                FROM   presencas
+                WHERE  entrada_em::date BETWEEN %s AND %s
+                ORDER  BY entrada_em DESC
+            """, (data_inicio, data_fim))
+        elif data_inicio:
+            cur.execute("""
+                SELECT cpf, nome, tipo, entrada_em, saida_em
+                FROM   presencas
+                WHERE  entrada_em::date = %s
+                ORDER  BY entrada_em DESC
+            """, (data_inicio,))
+        else:
+            cur.execute("""
+                SELECT cpf, nome, tipo, entrada_em, saida_em
+                FROM   presencas
+                WHERE  entrada_em::date = CURRENT_DATE
+                ORDER  BY entrada_em DESC
+            """)
         rows = cur.fetchall()
         cur.close()
         conn.close()

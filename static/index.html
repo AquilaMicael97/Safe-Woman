@@ -3,52 +3,90 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Proteção Maria da Penha</title>
+  <title>Safe Woman — Portaria</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 <div id="app">
 
   <div class="header">
-    <h1>Proteção Maria da Penha</h1>
-    <p>Sistema de segurança em eventos</p>
+    <div class="header-logo">
+      <img src="/static/logo.png" alt="Safe Woman" />
+    </div>
+    <div class="header-text">
+      <h1>Safe Woman</h1>
+      <p>Sistema de segurança em eventos</p>
+    </div>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      Online
+    </div>
   </div>
 
-  <!-- ══ HOME ══ -->
+  <!-- ══ HOME ══════════════════════════════════════════════ -->
   <div id="screen-home" class="screen active">
-    <p class="home-sub" style="margin-top:6px">Selecione uma opção</p>
+    <p class="home-sub">Selecione uma operação</p>
 
     <div class="card-btn cadastrar" onclick="showScreen('cadastrar')">
       <div class="icon">📋</div>
-      <div>
+      <div class="btn-content">
         <strong>Cadastrar Medida Protetiva</strong>
-        <span>Registrar documento no sistema</span>
+        <span>Registrar documento de proteção no sistema</span>
       </div>
+      <span class="arrow">›</span>
     </div>
 
     <div class="card-btn verificar" onclick="showScreen('verificar')">
       <div class="icon">🔍</div>
-      <div>
-        <strong>Verificar CNH — Entrada</strong>
+      <div class="btn-content">
+        <strong>Verificar Entrada (CNH)</strong>
         <span>Liberar ou bloquear acesso ao evento</span>
       </div>
+      <span class="arrow">›</span>
     </div>
 
     <div class="card-btn saida" onclick="showScreen('saida')">
       <div class="icon">🚪</div>
-      <div>
+      <div class="btn-content">
         <strong>Registrar Saída</strong>
-        <span>Dar baixa na presença ao sair / pagar comanda</span>
+        <span>Dar baixa na presença ao sair</span>
+      </div>
+      <span class="arrow">›</span>
+    </div>
+
+
+    <!-- Números de emergência -->
+    <div class="sos-section">
+      <p class="sos-title">Números de Emergência</p>
+      <div class="sos-grid">
+
+        <a href="tel:190" class="sos-card" style="--sc:#b91c1c;--sg:#7f1d1d">
+          <span class="sos-num">190</span>
+          <span class="sos-name">Polícia Militar</span>
+          <span class="sos-desc">Ocorrências e segurança pública</span>
+        </a>
+
+        <a href="tel:192" class="sos-card" style="--sc:#b45309;--sg:#78350f">
+          <span class="sos-num">192</span>
+          <span class="sos-name">SAMU</span>
+          <span class="sos-desc">Urgências e emergências médicas</span>
+        </a>
+
+        <a href="tel:180" class="sos-card" style="--sc:#7c3aed;--sg:#4c1d95">
+          <span class="sos-num">180</span>
+          <span class="sos-name">Central da Mulher</span>
+          <span class="sos-desc">Proteção e apoio à mulher</span>
+        </a>
+
       </div>
     </div>
 
-    <!-- Acesso administrativo discreto -->
     <div class="admin-access">
-      <a href="/login">⚙️ Acesso Administrativo</a>
+      <a href="/login">⚙ Acesso Administrativo</a>
     </div>
   </div>
 
-  <!-- ══ CADASTRAR ══ -->
+  <!-- ══ CADASTRAR ════════════════════════════════════════ -->
   <div id="screen-cadastrar" class="screen">
     <p class="screen-title">Cadastrar Medida Protetiva</p>
     <p class="screen-subtitle">Fotografe o documento para registrar no sistema</p>
@@ -60,75 +98,79 @@
       <p>Toque para fotografar</p>
       <small>ou selecionar da galeria</small>
     </div>
-    <img id="preview-mp" alt="Prévia" />
-    <button class="btn-primary" id="btn-cadastrar" onclick="enviarMedida()" disabled>
-      Cadastrar Medida
+    <img id="preview-mp" alt="Prévia do documento" />
+
+    <button class="btn-primary blue-btn" id="btn-cadastrar" onclick="enviarMedida()" disabled>
+      Processar Documento
     </button>
     <div class="link-back" onclick="showScreen('home')">← Voltar</div>
   </div>
 
-  <!-- ══ VERIFICAR / ENTRADA ══ -->
+  <!-- ══ VERIFICAR / ENTRADA ═══════════════════════════════ -->
   <div id="screen-verificar" class="screen">
-    <p class="screen-title">Verificar CNH — Entrada</p>
-    <p class="screen-subtitle">Fotografe a CNH do visitante</p>
+    <p class="screen-title">Verificar Entrada</p>
+    <p class="screen-subtitle">Fotografe a CNH do visitante para verificar</p>
 
     <div class="upload-area">
       <input type="file" accept="image/*" capture="environment" id="foto-cnh"
              onchange="previewImg('foto-cnh','preview-cnh','btn-verificar')">
       <div class="cam-icon">🪪</div>
-      <p>Toque para fotografar</p>
+      <p>Toque para fotografar a CNH</p>
       <small>ou selecionar da galeria</small>
     </div>
-    <img id="preview-cnh" alt="Prévia" />
+    <img id="preview-cnh" alt="Prévia da CNH" />
+
     <button class="btn-primary" id="btn-verificar" onclick="enviarCNH()" disabled>
-      Verificar CNH
+      Verificar Documento
     </button>
 
-    <div class="divider">ou</div>
+    <div class="divider">ou digite o CPF</div>
     <div class="cpf-row">
-      <input type="text" id="cpf-entrada" placeholder="Digite o CPF"
+      <input type="text" id="cpf-entrada" placeholder="000.000.000-00"
              maxlength="14" inputmode="numeric" oninput="mascaraCPF(this)" />
-      <button onclick="verificarCpf('cpf-entrada')">OK</button>
+      <button onclick="verificarCpf('cpf-entrada')">Verificar</button>
     </div>
 
     <div class="link-back" onclick="showScreen('home')">← Voltar</div>
   </div>
 
-  <!-- ══ SAÍDA ══ -->
+  <!-- ══ SAÍDA ═════════════════════════════════════════════ -->
   <div id="screen-saida" class="screen">
     <p class="screen-title">Registrar Saída</p>
     <p class="screen-subtitle">Fotografe a CNH ao sair ou pagar a comanda</p>
 
-    <div class="upload-area" style="border-color:#ffcc80;">
+    <div class="upload-area">
       <input type="file" accept="image/*" capture="environment" id="foto-saida"
              onchange="previewImg('foto-saida','preview-saida','btn-saida')">
       <div class="cam-icon">🚪</div>
       <p>Toque para fotografar a CNH</p>
       <small>ou selecionar da galeria</small>
     </div>
-    <img id="preview-saida" alt="Prévia" />
+    <img id="preview-saida" alt="Prévia da CNH" />
+
     <button class="btn-primary saida-btn" id="btn-saida" onclick="enviarSaida()" disabled>
       Confirmar Saída
     </button>
 
-    <div class="divider">ou</div>
+    <div class="divider">ou digite o CPF</div>
     <div class="cpf-row">
-      <input type="text" id="cpf-saida" placeholder="Digite o CPF"
+      <input type="text" id="cpf-saida" placeholder="000.000.000-00"
              maxlength="14" inputmode="numeric" oninput="mascaraCPF(this)" />
-      <button class="saida" onclick="saidaPorCpf()">Sair</button>
+      <button class="saida" onclick="saidaPorCpf()">Confirmar</button>
     </div>
 
     <div class="link-back" onclick="showScreen('home')">← Voltar</div>
   </div>
 
-  <!-- ══ LOADING ══ -->
+  <!-- ══ LOADING ═══════════════════════════════════════════ -->
   <div id="screen-loading">
     <div class="spinner"></div>
     <p id="loading-msg">Processando...</p>
   </div>
 
-  <!-- ══ RESULTADO ══ -->
+  <!-- ══ RESULTADO ════════════════════════════════════════ -->
   <div id="screen-resultado" class="screen">
+
     <div class="resultado-hero" id="resultado-hero">
       <div class="big-icon" id="res-icon"></div>
       <div class="nivel-label" id="res-nivel-label"></div>
@@ -137,263 +179,387 @@
         ⚡ CONTRAPARTE PRESENTE NO LOCAL
       </div>
     </div>
+
     <div class="resultado-body">
       <div id="res-presenca-cards"></div>
+
+      <!-- Botão de bloqueio — visível apenas em situações de risco -->
+      <div id="bloquear-wrap" style="display:none">
+        <button class="btn-bloquear" id="btn-bloquear" onclick="confirmarBloqueio()">
+          🚫 BLOQUEAR ENTRADA
+        </button>
+        <div class="bloquear-confirmado" id="bloquear-confirmado" style="display:none">
+          <div class="bc-icon">🔒</div>
+          <div class="bc-title">Entrada Bloqueada</div>
+          <div class="bc-instrucoes">
+            Não permita o acesso ao local.<br>
+            Notifique a segurança imediatamente.
+          </div>
+        </div>
+      </div>
+
       <div id="res-info-cards"></div>
       <div id="res-medidas"></div>
       <div id="cpf-fallback" style="display:none">
-        <p style="font-size:.82rem;color:#666;margin-bottom:8px">
-          CPF não lido. Digite manualmente:
-        </p>
+        <p>CPF não lido automaticamente. Digite manualmente:</p>
         <div class="cpf-row">
           <input type="text" id="cpf-fallback-input" placeholder="000.000.000-00"
                  maxlength="14" inputmode="numeric" oninput="mascaraCPF(this)" />
           <button onclick="verificarCpf('cpf-fallback-input')">OK</button>
         </div>
       </div>
-      <button class="btn-primary" onclick="showScreen('home')" style="margin-top:14px">
-        Nova verificação
+
+      <button class="btn-primary" onclick="showScreen('home')" style="margin-top:18px">
+        Nova Verificação
       </button>
     </div>
+
   </div>
 
 </div><!-- #app -->
 
 <script>
-  // ── Navegação ────────────────────────────────────────────────────────────
-  function showScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const el = document.getElementById('screen-' + id);
-    if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
-  }
+/* ── SISTEMA DE ALERTAS SONOROS ─────────────────────────── */
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
 
-  function setLoading(show, msg) {
-    document.getElementById('screen-loading').classList.toggle('active', show);
-    document.getElementById('loading-msg').textContent = msg || 'Processando...';
-  }
+function playAlert(type) {
+  try {
+    const ctx  = new AudioCtx();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
 
-  // ── Preview ──────────────────────────────────────────────────────────────
-  function previewImg(inputId, imgId, btnId) {
-    const file = document.getElementById(inputId).files[0];
-    if (!file) return;
-    const img = document.getElementById(imgId);
-    img.src = URL.createObjectURL(file);
-    img.style.display = 'block';
-    document.getElementById(btnId).disabled = false;
-  }
-
-  // ── Máscara CPF ──────────────────────────────────────────────────────────
-  function mascaraCPF(el) {
-    let v = el.value.replace(/\D/g, '').slice(0, 11);
-    if (v.length > 9)      v = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    else if (v.length > 6) v = v.replace(/^(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
-    else if (v.length > 3) v = v.replace(/^(\d{3})(\d{0,3})/, '$1.$2');
-    el.value = v;
-  }
-
-  // ── Envios ───────────────────────────────────────────────────────────────
-  async function enviarMedida() {
-    const file = document.getElementById('foto-mp').files[0];
-    if (!file) return;
-    setLoading(true, 'Lendo medida protetiva...');
-    const form = new FormData();
-    form.append('foto', file);
-    try {
-      const data = await fetch('/api/cadastrar-medida', { method:'POST', body:form })
-                         .then(r => r.json());
-      setLoading(false);
-      renderCadastro(data);
-    } catch { setLoading(false); renderErro('Falha na conexão.'); }
-  }
-
-  async function enviarCNH() {
-    const file = document.getElementById('foto-cnh').files[0];
-    if (!file) return;
-    setLoading(true, 'Verificando CNH...');
-    const form = new FormData();
-    form.append('foto', file);
-    try {
-      const data = await fetch('/api/verificar-cnh', { method:'POST', body:form })
-                         .then(r => r.json());
-      setLoading(false);
-      renderVerificacao(data);
-    } catch { setLoading(false); renderErro('Falha na conexão.'); }
-  }
-
-  async function verificarCpf(inputId) {
-    const cpf = document.getElementById(inputId).value.trim();
-    if (cpf.replace(/\D/g,'').length < 11) { alert('CPF incompleto.'); return; }
-    setLoading(true, 'Verificando CPF...');
-    try {
-      const data = await fetch('/api/verificar-cpf?cpf=' + encodeURIComponent(cpf))
-                         .then(r => r.json());
-      setLoading(false);
-      renderVerificacao(data);
-    } catch { setLoading(false); renderErro('Falha na conexão.'); }
-  }
-
-  async function enviarSaida() {
-    const file = document.getElementById('foto-saida').files[0];
-    if (!file) return;
-    setLoading(true, 'Registrando saída...');
-    const form = new FormData();
-    form.append('foto', file);
-    try {
-      const data = await fetch('/api/saida', { method:'POST', body:form })
-                         .then(r => r.json());
-      setLoading(false);
-      renderSaida(data);
-    } catch { setLoading(false); renderErro('Falha na conexão.'); }
-  }
-
-  async function saidaPorCpf() {
-    const cpf = document.getElementById('cpf-saida').value.trim();
-    if (cpf.replace(/\D/g,'').length < 11) { alert('CPF incompleto.'); return; }
-    setLoading(true, 'Registrando saída...');
-    try {
-      const data = await fetch('/api/saida-cpf?cpf=' + encodeURIComponent(cpf), { method:'POST' })
-                         .then(r => r.json());
-      setLoading(false);
-      renderSaida(data);
-    } catch { setLoading(false); renderErro('Falha na conexão.'); }
-  }
-
-  // ── Renders ──────────────────────────────────────────────────────────────
-  const NIVEL = {
-    'vermelho-urgente': { bg:'#7b0000', icon:'🚨', label:'PERIGO IMEDIATO',   titulo:'AGRESSOR + VÍTIMA NO LOCAL' },
-    'vermelho':         { bg:'#b71c1c', icon:'🚫', label:'Acesso Negado',     titulo:'AGRESSOR IDENTIFICADO' },
-    'amarelo-urgente':  { bg:'#bf360c', icon:'⚠️', label:'ATENÇÃO URGENTE',   titulo:'VÍTIMA — AGRESSOR PRESENTE' },
-    'amarelo':          { bg:'#e65100', icon:'⚠️', label:'Atenção',           titulo:'VÍTIMA CADASTRADA' },
-    'verde':            { bg:'#2e7d32', icon:'✅', label:'Acesso Liberado',   titulo:'SEM RESTRIÇÕES' },
-    'cinza':            { bg:'#37474f', icon:'❓', label:'CPF não lido',      titulo:'VERIFICAÇÃO MANUAL' },
-  };
-
-  function renderVerificacao(data) {
-    if (data.status === 'erro') { renderErro(data.mensagem); return; }
-
-    const cfg  = NIVEL[data.nivel] || NIVEL.cinza;
-    const hero = document.getElementById('resultado-hero');
-    hero.style.background = cfg.bg;
-    document.getElementById('res-icon').textContent        = cfg.icon;
-    document.getElementById('res-nivel-label').textContent = cfg.label;
-    document.getElementById('res-titulo').textContent      = cfg.titulo;
-
-    const urgBadge = document.getElementById('res-urgente');
-    urgBadge.style.display = data.urgente ? 'inline-block' : 'none';
-
-    let presHTML = '';
-    if (data.vitimas_dentro && data.vitimas_dentro.length) {
-      data.vitimas_dentro.forEach(v => {
-        presHTML += `<div class="presenca-alerta vitima">
-          <div class="pa-title">Vítima atualmente no local</div>
-          <div class="pa-nome">${v.nome} <small style="color:#888">${v.processo}</small></div>
-        </div>`;
-      });
-    }
-    if (data.agressores_dentro && data.agressores_dentro.length) {
-      data.agressores_dentro.forEach(a => {
-        presHTML += `<div class="presenca-alerta agressor">
-          <div class="pa-title">Agressor atualmente no local</div>
-          <div class="pa-nome">${a.nome} <small style="color:#888">${a.processo}</small></div>
-        </div>`;
-      });
-    }
-    document.getElementById('res-presenca-cards').innerHTML = presHTML;
-
-    let infoHTML = '';
-    if (data.nome)            infoHTML += infoCard('Nome', data.nome);
-    if (data.cpf)             infoHTML += infoCard('CPF',  data.cpf);
-    if (data.data_nascimento) infoHTML += infoCard('Nascimento', data.data_nascimento);
-    if (data.mensagem)        infoHTML += infoCard('Situação', data.mensagem);
-    document.getElementById('res-info-cards').innerHTML = infoHTML;
-
-    let medHTML = '';
-    if (data.medidas_ativas && data.medidas_ativas.length) {
-      medHTML += `<p style="font-size:.74rem;font-weight:700;color:#b71c1c;
-        text-transform:uppercase;margin:4px 0 8px">Medidas Protetivas Ativas</p>`;
-      data.medidas_ativas.forEach(m => {
-        medHTML += `<div class="medida-card">
-          <div class="mc-title">Processo ${m.processo}</div>
-          <div class="mc-row">Vítima: <span>${m.vitima}</span></div>
-          <div class="mc-row">Emissão: <span>${m.data_emissao||'—'}</span> &nbsp;|&nbsp; Vara: <span>${m.vara||'—'}</span></div>
-        </div>`;
-      });
-    }
-    document.getElementById('res-medidas').innerHTML = medHTML;
-
-    document.getElementById('cpf-fallback').style.display =
-      data.nivel === 'cinza' ? 'block' : 'none';
-
-    showScreen('resultado');
-  }
-
-  function renderCadastro(data) {
-    if (data.status === 'erro') { renderErro(data.mensagem); return; }
-    const hero = document.getElementById('resultado-hero');
-    hero.style.background = data.ja_existia ? '#546e7a' : '#1565c0';
-    document.getElementById('res-icon').textContent        = data.ja_existia ? '⚠️' : '✅';
-    document.getElementById('res-nivel-label').textContent = data.ja_existia ? 'Já cadastrada' : 'Cadastro realizado';
-    document.getElementById('res-titulo').textContent      = data.ja_existia ? 'Medida já estava no sistema' : 'Medida registrada com sucesso';
-    document.getElementById('res-urgente').style.display   = 'none';
-    document.getElementById('res-presenca-cards').innerHTML = '';
-    document.getElementById('res-info-cards').innerHTML =
-      infoCard('Processo', data.numero_processo) +
-      infoCard('Vítima', data.nome_vitima) +
-      infoCard('Agressor', data.nome_agressor) +
-      (data.cpf_agressor && data.cpf_agressor !== 'Não encontrado'
-        ? infoCard('CPF do agressor', data.cpf_agressor) : '') +
-      infoCard('Vara', data.vara);
-    document.getElementById('res-medidas').innerHTML = '';
-    document.getElementById('cpf-fallback').style.display  = 'none';
-    showScreen('resultado');
-  }
-
-  function renderSaida(data) {
-    if (data.status === 'erro') { renderErro(data.mensagem); return; }
-
-    const tipoBadge = {
-      vitima:   '<span class="badge vitima">Vítima</span>',
-      agressor: '<span class="badge agressor">Agressor</span>',
-      outro:    '<span class="badge outro">Visitante</span>',
+    const sequences = {
+      urgent:  [{ f:880, t:0 }, { f:660, t:.28 }, { f:880, t:.56 }, { f:1100, t:.84 }],
+      warning: [{ f:660, t:0 }, { f:550, t:.35 }],
+      info:    [{ f:440, t:0 }],
+      success: [{ f:523, t:0 }, { f:659, t:.2 }],
     };
 
-    const hero = document.getElementById('resultado-hero');
-    hero.style.background = '#2e7d32';
-    document.getElementById('res-icon').textContent        = '👋';
-    document.getElementById('res-nivel-label').textContent = 'Saída registrada';
-    document.getElementById('res-titulo').textContent      = 'Saída confirmada';
-    document.getElementById('res-urgente').style.display   = 'none';
-    document.getElementById('res-presenca-cards').innerHTML = '';
-    document.getElementById('res-info-cards').innerHTML =
-      infoCard('Nome',    data.nome + (tipoBadge[data.tipo] || '')) +
-      infoCard('CPF',     data.cpf) +
-      infoCard('Entrada', new Date(data.entrada_em).toLocaleString('pt-BR'));
-    document.getElementById('res-medidas').innerHTML = '';
-    document.getElementById('cpf-fallback').style.display  = 'none';
-    showScreen('resultado');
-  }
+    const seq = sequences[type] || sequences.info;
+    const totalDuration = (seq[seq.length - 1].t) + 0.4;
 
-  function renderErro(msg) {
-    const hero = document.getElementById('resultado-hero');
-    hero.style.background = '#4e342e';
-    document.getElementById('res-icon').textContent        = '❌';
-    document.getElementById('res-nivel-label').textContent = 'Erro';
-    document.getElementById('res-titulo').textContent      = 'Não foi possível processar';
-    document.getElementById('res-urgente').style.display   = 'none';
-    document.getElementById('res-presenca-cards').innerHTML = '';
-    document.getElementById('res-info-cards').innerHTML    = infoCard('Motivo', msg);
-    document.getElementById('res-medidas').innerHTML       = '';
-    document.getElementById('cpf-fallback').style.display  = 'none';
-    showScreen('resultado');
-  }
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + totalDuration);
 
-  function infoCard(label, value) {
-    if (!value || value === 'Não encontrado' || value === 'Não identificada') return '';
-    return `<div class="info-card">
-      <div class="label">${label}</div>
-      <div class="value">${value}</div>
+    seq.forEach(({ f, t }) => {
+      const osc = ctx.createOscillator();
+      osc.connect(gain);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, ctx.currentTime + t);
+      osc.start(ctx.currentTime + t);
+      osc.stop(ctx.currentTime + t + 0.22);
+    });
+  } catch (_) {}
+}
+
+/* ── NAVEGAÇÃO ──────────────────────────────────────────── */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen-' + id);
+  if (el) { el.classList.add('active'); window.scrollTo(0, 0); }
+}
+
+function setLoading(show, msg) {
+  const overlay = document.getElementById('screen-loading');
+  overlay.style.display = show ? 'flex' : 'none';
+  document.getElementById('loading-msg').textContent = msg || 'Processando...';
+}
+
+/* ── PREVIEW DE IMAGEM ──────────────────────────────────── */
+function previewImg(inputId, imgId, btnId) {
+  const file = document.getElementById(inputId).files[0];
+  if (!file) return;
+  const img = document.getElementById(imgId);
+  img.src = URL.createObjectURL(file);
+  img.style.display = 'block';
+  document.getElementById(btnId).disabled = false;
+}
+
+/* ── MÁSCARA CPF ────────────────────────────────────────── */
+function mascaraCPF(el) {
+  let v = el.value.replace(/\D/g, '').slice(0, 11);
+  if (v.length > 9)      v = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  else if (v.length > 6) v = v.replace(/^(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+  else if (v.length > 3) v = v.replace(/^(\d{3})(\d{0,3})/, '$1.$2');
+  el.value = v;
+}
+
+/* ── ENVIOS ─────────────────────────────────────────────── */
+async function enviarMedida() {
+  const file = document.getElementById('foto-mp').files[0];
+  if (!file) return;
+  setLoading(true, 'Lendo medida protetiva...');
+  const form = new FormData();
+  form.append('foto', file);
+  try {
+    const data = await fetch('/api/cadastrar-medida', { method: 'POST', body: form }).then(r => r.json());
+    setLoading(false);
+    renderCadastro(data);
+  } catch {
+    setLoading(false);
+    renderErro('Falha na conexão com o servidor.');
+  }
+}
+
+async function enviarCNH() {
+  const file = document.getElementById('foto-cnh').files[0];
+  if (!file) return;
+  setLoading(true, 'Verificando CNH...');
+  const form = new FormData();
+  form.append('foto', file);
+  try {
+    const data = await fetch('/api/verificar-cnh', { method: 'POST', body: form }).then(r => r.json());
+    setLoading(false);
+    renderVerificacao(data);
+  } catch {
+    setLoading(false);
+    renderErro('Falha na conexão com o servidor.');
+  }
+}
+
+async function verificarCpf(inputId) {
+  const cpf = document.getElementById(inputId).value.trim();
+  if (cpf.replace(/\D/g, '').length < 11) { showToast('CPF incompleto. Verifique os dados.'); return; }
+  setLoading(true, 'Verificando CPF...');
+  try {
+    const data = await fetch('/api/verificar-cpf?cpf=' + encodeURIComponent(cpf)).then(r => r.json());
+    setLoading(false);
+    renderVerificacao(data);
+  } catch {
+    setLoading(false);
+    renderErro('Falha na conexão com o servidor.');
+  }
+}
+
+async function enviarSaida() {
+  const file = document.getElementById('foto-saida').files[0];
+  if (!file) return;
+  setLoading(true, 'Registrando saída...');
+  const form = new FormData();
+  form.append('foto', file);
+  try {
+    const data = await fetch('/api/saida', { method: 'POST', body: form }).then(r => r.json());
+    setLoading(false);
+    renderSaida(data);
+  } catch {
+    setLoading(false);
+    renderErro('Falha na conexão com o servidor.');
+  }
+}
+
+async function saidaPorCpf() {
+  const cpf = document.getElementById('cpf-saida').value.trim();
+  if (cpf.replace(/\D/g, '').length < 11) { showToast('CPF incompleto. Verifique os dados.'); return; }
+  setLoading(true, 'Registrando saída...');
+  try {
+    const data = await fetch('/api/saida-cpf?cpf=' + encodeURIComponent(cpf), { method: 'POST' }).then(r => r.json());
+    setLoading(false);
+    renderSaida(data);
+  } catch {
+    setLoading(false);
+    renderErro('Falha na conexão com o servidor.');
+  }
+}
+
+/* ── CONFIG DE NÍVEIS ───────────────────────────────────── */
+const NIVEL = {
+  'vermelho-urgente': {
+    bg: 'linear-gradient(180deg, #4a0000 0%, #7b0000 100%)',
+    icon: '🚨', label: 'PERIGO IMEDIATO',
+    titulo: 'AGRESSOR + VÍTIMA NO LOCAL',
+    sound: 'urgent',
+  },
+  'vermelho': {
+    bg: 'linear-gradient(180deg, #7b0000 0%, #b71c1c 100%)',
+    icon: '🚫', label: 'Acesso Negado',
+    titulo: 'AGRESSOR IDENTIFICADO',
+    sound: 'warning',
+  },
+  'amarelo-urgente': {
+    bg: 'linear-gradient(180deg, #7f3000 0%, #bf360c 100%)',
+    icon: '⚠️', label: 'ATENÇÃO URGENTE',
+    titulo: 'VÍTIMA — AGRESSOR PRESENTE',
+    sound: 'urgent',
+  },
+  'amarelo': {
+    bg: 'linear-gradient(180deg, #b84800 0%, #e65100 100%)',
+    icon: '⚠️', label: 'Atenção',
+    titulo: 'VÍTIMA CADASTRADA',
+    sound: 'warning',
+  },
+  'verde': {
+    bg: 'linear-gradient(180deg, #14532d 0%, #166534 100%)',
+    icon: '✅', label: 'Acesso Liberado',
+    titulo: 'SEM RESTRIÇÕES',
+    sound: 'success',
+  },
+  'cinza': {
+    bg: 'linear-gradient(180deg, #1e293b 0%, #334155 100%)',
+    icon: '❓', label: 'CPF não lido',
+    titulo: 'VERIFICAÇÃO MANUAL',
+    sound: null,
+  },
+};
+
+/* ── RENDERIZAÇÕES ──────────────────────────────────────── */
+function renderVerificacao(data) {
+  if (data.status === 'erro') { renderErro(data.mensagem); return; }
+
+  const cfg  = NIVEL[data.nivel] || NIVEL.cinza;
+  const hero = document.getElementById('resultado-hero');
+  hero.style.background = cfg.bg;
+
+  document.getElementById('res-icon').textContent        = cfg.icon;
+  document.getElementById('res-nivel-label').textContent = cfg.label;
+  document.getElementById('res-titulo').textContent      = cfg.titulo;
+
+  const urgBadge = document.getElementById('res-urgente');
+  urgBadge.style.display = data.urgente ? 'inline-block' : 'none';
+
+  const nivelsBloqueio = ['vermelho-urgente', 'vermelho', 'amarelo-urgente'];
+  const deveBloquear   = nivelsBloqueio.includes(data.nivel);
+  document.getElementById('bloquear-wrap').style.display        = deveBloquear ? 'block' : 'none';
+  document.getElementById('btn-bloquear').style.display         = 'block';
+  document.getElementById('bloquear-confirmado').style.display  = 'none';
+
+  if (cfg.sound) playAlert(cfg.sound);
+
+  let presHTML = '';
+  (data.vitimas_dentro || []).forEach(v => {
+    presHTML += `<div class="presenca-alerta vitima">
+      <div class="pa-title">Vítima no local</div>
+      <div class="pa-nome">${v.nome} <small style="color:var(--t3)">${v.processo}</small></div>
     </div>`;
+  });
+  (data.agressores_dentro || []).forEach(a => {
+    presHTML += `<div class="presenca-alerta agressor">
+      <div class="pa-title">Agressor no local</div>
+      <div class="pa-nome">${a.nome} <small style="color:var(--t3)">${a.processo}</small></div>
+    </div>`;
+  });
+  document.getElementById('res-presenca-cards').innerHTML = presHTML;
+
+  let infoHTML = '';
+  if (data.nome)            infoHTML += infoCard('Nome', data.nome);
+  if (data.cpf)             infoHTML += infoCard('CPF', data.cpf);
+  if (data.data_nascimento) infoHTML += infoCard('Nascimento', data.data_nascimento);
+  if (data.mensagem)        infoHTML += infoCard('Situação', data.mensagem);
+  document.getElementById('res-info-cards').innerHTML = infoHTML;
+
+  let medHTML = '';
+  if (data.medidas_ativas && data.medidas_ativas.length) {
+    medHTML += `<p style="font-size:.68rem;font-weight:800;color:#ef5350;
+      text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px">
+      Medidas Protetivas Ativas</p>`;
+    data.medidas_ativas.forEach(m => {
+      medHTML += `<div class="medida-card">
+        <div class="mc-title">Processo ${m.processo}</div>
+        <div class="mc-row">Vítima: <span>${m.vitima}</span></div>
+        <div class="mc-row">Emissão: <span>${m.data_emissao || '—'}</span>
+          &nbsp;|&nbsp; Vara: <span>${m.vara || '—'}</span></div>
+      </div>`;
+    });
   }
+  document.getElementById('res-medidas').innerHTML = medHTML;
+  document.getElementById('cpf-fallback').style.display = data.nivel === 'cinza' ? 'block' : 'none';
+
+  showScreen('resultado');
+}
+
+function confirmarBloqueio() {
+  document.getElementById('btn-bloquear').style.display        = 'none';
+  document.getElementById('bloquear-confirmado').style.display = 'block';
+  playAlert('urgent');
+}
+
+function renderCadastro(data) {
+  if (data.status === 'erro') { renderErro(data.mensagem); return; }
+  document.getElementById('bloquear-wrap').style.display = 'none';
+  const hero = document.getElementById('resultado-hero');
+  hero.style.background = data.ja_existia
+    ? 'linear-gradient(180deg, #1e293b 0%, #334155 100%)'
+    : 'linear-gradient(180deg, #0c2940 0%, #1565c0 100%)';
+
+  document.getElementById('res-icon').textContent        = data.ja_existia ? '⚠️' : '✅';
+  document.getElementById('res-nivel-label').textContent = data.ja_existia ? 'Já cadastrada' : 'Cadastro realizado';
+  document.getElementById('res-titulo').textContent      = data.ja_existia ? 'Medida já estava no sistema' : 'Medida registrada com sucesso';
+  document.getElementById('res-urgente').style.display  = 'none';
+  document.getElementById('res-presenca-cards').innerHTML = '';
+  document.getElementById('res-info-cards').innerHTML =
+    infoCard('Nº do Processo', data.numero_processo) +
+    infoCard('Vítima', data.nome_vitima) +
+    infoCard('Agressor', data.nome_agressor) +
+    (data.cpf_agressor && data.cpf_agressor !== 'Não encontrado'
+      ? infoCard('CPF do Agressor', data.cpf_agressor) : '') +
+    infoCard('Vara', data.vara);
+  document.getElementById('res-medidas').innerHTML = '';
+  document.getElementById('cpf-fallback').style.display = 'none';
+
+  if (!data.ja_existia) playAlert('success');
+  showScreen('resultado');
+}
+
+function renderSaida(data) {
+  if (data.status === 'erro') { renderErro(data.mensagem); return; }
+  document.getElementById('bloquear-wrap').style.display = 'none';
+  const hero = document.getElementById('resultado-hero');
+  hero.style.background = 'linear-gradient(180deg, #14532d 0%, #166534 100%)';
+  document.getElementById('res-icon').textContent        = '👋';
+  document.getElementById('res-nivel-label').textContent = 'Saída registrada';
+  document.getElementById('res-titulo').textContent      = 'Saída confirmada';
+  document.getElementById('res-urgente').style.display  = 'none';
+  document.getElementById('res-presenca-cards').innerHTML = '';
+
+  const tipoBadge = {
+    vitima:   '<span class="badge vitima">Vítima</span>',
+    agressor: '<span class="badge agressor">Agressor</span>',
+    outro:    '<span class="badge outro">Visitante</span>',
+  };
+
+  document.getElementById('res-info-cards').innerHTML =
+    infoCard('Nome', (data.nome || '—') + (tipoBadge[data.tipo] || '')) +
+    infoCard('CPF',  data.cpf) +
+    infoCard('Entrada', new Date(data.entrada_em).toLocaleString('pt-BR'));
+  document.getElementById('res-medidas').innerHTML = '';
+  document.getElementById('cpf-fallback').style.display = 'none';
+
+  playAlert('success');
+  showScreen('resultado');
+}
+
+function renderErro(msg) {
+  document.getElementById('bloquear-wrap').style.display = 'none';
+  const hero = document.getElementById('resultado-hero');
+  hero.style.background = 'linear-gradient(180deg, #1c0a00 0%, #3e1a00 100%)';
+  document.getElementById('res-icon').textContent        = '❌';
+  document.getElementById('res-nivel-label').textContent = 'Erro';
+  document.getElementById('res-titulo').textContent      = 'Não foi possível processar';
+  document.getElementById('res-urgente').style.display  = 'none';
+  document.getElementById('res-presenca-cards').innerHTML = '';
+  document.getElementById('res-info-cards').innerHTML    = infoCard('Motivo', msg);
+  document.getElementById('res-medidas').innerHTML       = '';
+  document.getElementById('cpf-fallback').style.display  = 'none';
+  showScreen('resultado');
+}
+
+function infoCard(label, value) {
+  if (!value || value === 'Não encontrado' || value === 'Não identificada') return '';
+  return `<div class="info-card">
+    <div class="label">${label}</div>
+    <div class="value">${value}</div>
+  </div>`;
+}
+
+/* ── TOAST ──────────────────────────────────────────────── */
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
 </script>
 </body>
 </html>
