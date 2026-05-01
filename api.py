@@ -20,8 +20,25 @@ import secrets
 import pathlib
 import tempfile
 
-if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
+# Railway: lê a chave do Google Cloud Vision pela variável de ambiente
+google_credentials_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+
+if google_credentials_json:
+    credentials_path = os.path.join(
+        tempfile.gettempdir(),
+        "google_credentials.json"
+    )
+
+    with open(credentials_path, "w", encoding="utf-8") as f:
+        f.write(google_credentials_json)
+
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
+
+else:
+    # Local: usa a chave do seu computador
+    if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
+
 sys.stdout.reconfigure(encoding="utf-8")
 
 import app as ocr
