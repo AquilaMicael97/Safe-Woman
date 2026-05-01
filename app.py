@@ -7,7 +7,8 @@ from google.cloud import vision
 # Força UTF-8 no terminal Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
+if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"G:\Meu Drive\Biopark\3semestre\projetointegrador\Safe-Woman\chave.json"
 
 
 # ─────────────────────────────────────────────
@@ -347,11 +348,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_presenca_ativa
 
 def conectar():
     return psycopg2.connect(
-        dbname="cnh_db",
-        user="postgres",
-        password="@SV$ab!@#2506",
-        host="localhost",
-        port="5432"
+        dbname=os.environ.get("DB_NAME",     "cnh_db"),
+        user=os.environ.get("DB_USER",       "postgres"),
+        password=os.environ.get("DB_PASSWORD", "@SV$ab!@#2506"),
+        host=os.environ.get("DB_HOST",       "localhost"),
+        port=os.environ.get("DB_PORT",       "5432"),
     )
 
 

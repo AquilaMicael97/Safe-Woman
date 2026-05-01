@@ -3,22 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Acesso Administrativo — Proteção Maria da Penha</title>
-  <link rel="stylesheet" href="/static/login.css" />
+  <title>Safe Woman — Acesso Administrativo</title>
+  <link rel="stylesheet" href="/static/login.css?v=3" />
 </head>
 <body>
 
 <div class="login-wrapper">
 
-  <div class="login-logo">
-    <span class="logo-icon">🛡️</span>
-    <h1>Proteção Maria da Penha</h1>
-    <p>Painel Administrativo</p>
-  </div>
-
   <div class="login-card">
     <h2>Entrar como administrador</h2>
-    <p class="subtitle">Acesso restrito. Insira suas credenciais.</p>
+    <p class="subtitle">Acesso restrito. Insira suas credenciais para continuar.</p>
 
     <form id="form-login" onsubmit="fazerLogin(event)" autocomplete="off">
 
@@ -40,7 +34,7 @@
       </button>
 
       <div class="msg-erro" id="msg-erro">
-        ⚠️ <span id="erro-texto">Usuário ou senha incorretos.</span>
+        ⚠ <span id="erro-texto">Usuário ou senha incorretos.</span>
       </div>
 
     </form>
@@ -50,10 +44,14 @@
     <a href="/">← Voltar à portaria</a>
   </div>
 
+  <div class="login-footer">
+    Safe Woman &copy; 2025 — Sistema de Proteção Maria da Penha<br>
+    Acesso monitorado e registrado
+  </div>
+
 </div>
 
 <script>
-  // Se já estiver autenticado, vai direto pro painel
   if (sessionStorage.getItem('admin_token')) {
     window.location.replace('/admin');
   }
@@ -89,7 +87,6 @@
           data.detail || 'Usuário ou senha incorretos.';
         erro.classList.add('visible');
       }
-
     } catch {
       document.getElementById('erro-texto').textContent = 'Erro de conexão. Tente novamente.';
       erro.classList.add('visible');

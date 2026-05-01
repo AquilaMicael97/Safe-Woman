@@ -8,6 +8,7 @@ settings.local.json
 
 # Credenciais e chaves (NUNCA subir)
 chave.json
+.env
 
 # Logs
 *.log

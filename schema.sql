@@ -23,3 +23,15 @@ CREATE TABLE IF NOT EXISTS medidas_protetivas (
     ativa            BOOLEAN DEFAULT TRUE,
     criado_em        TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS presencas (
+    id         SERIAL PRIMARY KEY,
+    cpf        VARCHAR(14)  NOT NULL,
+    nome       VARCHAR(255),
+    tipo       VARCHAR(10)  CHECK (tipo IN ('vitima','agressor','outro')) DEFAULT 'outro',
+    entrada_em TIMESTAMPTZ DEFAULT NOW(),
+    saida_em   TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_presenca_ativa
+    ON presencas(cpf) WHERE saida_em IS NULL;
