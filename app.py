@@ -7,7 +7,7 @@ from google.cloud import vision
 # Força UTF-8 no terminal Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"G:\Meu Drive\Biopark\Safe-Woman\chave2.json"
 
 
 # ─────────────────────────────────────────────

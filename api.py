@@ -6,7 +6,7 @@ import secrets
 import pathlib
 import tempfile
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"G:\Meu Drive\Biopark\Safe-Woman\chave2.json"
 sys.stdout.reconfigure(encoding="utf-8")
 
 import app as ocr
@@ -171,18 +171,74 @@ async def cadastrar_medida(foto: UploadFile = File(...)):
               dados["data_emissao"], dados["vara"]))
         row = cur.fetchone()
         conn.commit()
+
+        # Verifica se o agressor já está presente no local
+        cpf_agressor = dados.get("cpf_agressor", "Não encontrado")
+        agressor_presente = False
+        vitima_presente   = False
+
+        if cpf_agressor and cpf_agressor != "Não encontrado":
+            cur.execute(
+                "SELECT id FROM presencas WHERE cpf = %s AND saida_em IS NULL",
+                (cpf_agressor,)
+            )
+            if cur.fetchone():
+                agressor_presente = True
+                # Corrige o tipo da presença para 'agressor'
+                cur.execute(
+                    "UPDATE presencas SET tipo = 'agressor' WHERE cpf = %s AND saida_em IS NULL",
+                    (cpf_agressor,)
+                )
+                conn.commit()
+
+        cpf_vitima = dados.get("cpf_vitima", "Não encontrado")
+        if cpf_vitima and cpf_vitima != "Não encontrado":
+            cur.execute(
+                "SELECT id FROM presencas WHERE cpf = %s AND saida_em IS NULL",
+                (cpf_vitima,)
+            )
+            if cur.fetchone():
+                vitima_presente = True
+                cur.execute(
+                    "UPDATE presencas SET tipo = 'vitima' WHERE cpf = %s AND saida_em IS NULL",
+                    (cpf_vitima,)
+                )
+                conn.commit()
+
         cur.close()
         conn.close()
 
+        nivel = "verde"
+        alerta = False
+        mensagem_alerta = ""
+
+        if agressor_presente and vitima_presente:
+            nivel = "vermelho-urgente"
+            alerta = True
+            mensagem_alerta = f"URGENTE: {dados['nome_agressor']} (agressor) e {dados['nome_vitima']} (vítima) estão AMBOS presentes no local!"
+        elif agressor_presente:
+            nivel = "vermelho"
+            alerta = True
+            mensagem_alerta = f"ALERTA: {dados['nome_agressor']} está presente no local e possui medida protetiva ativa!"
+        elif vitima_presente:
+            nivel = "amarelo"
+            alerta = True
+            mensagem_alerta = f"ATENÇÃO: {dados['nome_vitima']} (vítima protegida) está presente no local."
+
         return {
-            "status"         : "ok",
-            "ja_existia"     : row is None,
-            "numero_processo": dados["numero_processo"],
-            "nome_vitima"    : dados["nome_vitima"],
-            "nome_agressor"  : dados["nome_agressor"],
-            "cpf_agressor"   : dados.get("cpf_agressor", "Não encontrado"),
-            "data_emissao"   : dados["data_emissao"],
-            "vara"           : dados["vara"],
+            "status"           : "ok",
+            "ja_existia"       : row is None,
+            "numero_processo"  : dados["numero_processo"],
+            "nome_vitima"      : dados["nome_vitima"],
+            "nome_agressor"    : dados["nome_agressor"],
+            "cpf_agressor"     : cpf_agressor,
+            "data_emissao"     : dados["data_emissao"],
+            "vara"             : dados["vara"],
+            "nivel"            : nivel,
+            "alerta"           : alerta,
+            "agressor_presente": agressor_presente,
+            "vitima_presente"  : vitima_presente,
+            "mensagem_alerta"  : mensagem_alerta,
         }
 
     except Exception as e:

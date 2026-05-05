@@ -330,11 +330,31 @@
   function renderCadastro(data) {
     if (data.status === 'erro') { renderErro(data.mensagem); return; }
     const hero = document.getElementById('resultado-hero');
-    hero.style.background = data.ja_existia ? '#546e7a' : '#1565c0';
-    document.getElementById('res-icon').textContent        = data.ja_existia ? '⚠️' : '✅';
-    document.getElementById('res-nivel-label').textContent = data.ja_existia ? 'Já cadastrada' : 'Cadastro realizado';
-    document.getElementById('res-titulo').textContent      = data.ja_existia ? 'Medida já estava no sistema' : 'Medida registrada com sucesso';
-    document.getElementById('res-urgente').style.display   = 'none';
+
+    const corNivel = {
+      'vermelho-urgente': '#b71c1c',
+      'vermelho'        : '#c62828',
+      'amarelo'         : '#f57f17',
+      'verde'           : '#1565c0',
+    };
+
+    if (data.alerta) {
+      hero.style.background = corNivel[data.nivel] || '#c62828';
+      document.getElementById('res-icon').textContent        = data.nivel === 'vermelho-urgente' ? '🚨' : '⚠️';
+      document.getElementById('res-nivel-label').textContent = data.nivel === 'amarelo' ? 'Atenção' : 'ALERTA';
+      document.getElementById('res-titulo').textContent      = data.mensagem_alerta;
+      document.getElementById('res-urgente').style.display   = 'block';
+      document.getElementById('res-urgente').textContent     = data.agressor_presente
+        ? 'O agressor está PRESENTE no local agora!'
+        : 'A vítima está presente no local agora!';
+    } else {
+      hero.style.background = data.ja_existia ? '#546e7a' : '#1565c0';
+      document.getElementById('res-icon').textContent        = data.ja_existia ? '⚠️' : '✅';
+      document.getElementById('res-nivel-label').textContent = data.ja_existia ? 'Já cadastrada' : 'Cadastro realizado';
+      document.getElementById('res-titulo').textContent      = data.ja_existia ? 'Medida já estava no sistema' : 'Medida registrada com sucesso';
+      document.getElementById('res-urgente').style.display   = 'none';
+    }
+
     document.getElementById('res-presenca-cards').innerHTML = '';
     document.getElementById('res-info-cards').innerHTML =
       infoCard('Processo', data.numero_processo) +
