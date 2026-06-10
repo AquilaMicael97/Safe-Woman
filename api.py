@@ -1,3 +1,17 @@
+# import os
+# import sys
+# import re
+# import time
+# import secrets
+# import pathlib
+# import tempfile
+
+# if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+#     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\BIOPARK\MariaPenha\chave.json"
+# sys.stdout.reconfigure(encoding="utf-8")
+
+
+#Teste no Raiway
 import os
 import sys
 import re
@@ -71,6 +85,8 @@ server.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+BASE_DIR = pathlib.Path(__file__).resolve().parent
 
 
 # ─────────────────────────────────────────────

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Painel Admin — Proteção Maria da Penha</title>
+  <title>Safe Woman — Painel Admin</title>
   <link rel="stylesheet" href="/static/admin.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -54,7 +54,7 @@
   </div>
 </aside>
 
-<!-- ═══════════════ TOPBAR ═══════════════ -->
+<!-- ═══════════════ TOPBAR ════════════════════════════════ -->
 <header class="topbar">
   <div class="topbar-left">
     <button class="hamburger-btn" id="btn-hamburger" onclick="toggleSidebar()" aria-label="Menu">
@@ -82,7 +82,9 @@
       <div class="ab-icon">🚨</div>
       <div>
         <div class="ab-text">SITUAÇÃO DE RISCO DETECTADA</div>
-        <div class="ab-sub" id="urgencia-texto">Agressor e vítima com medida protetiva estão simultaneamente no local.</div>
+        <div class="ab-sub" id="urgencia-texto">
+          Agressor e vítima com medida protetiva estão simultaneamente no local.
+        </div>
       </div>
     </div>
 
@@ -150,7 +152,9 @@
 
     <div class="card">
       <div class="card-header">
-        <h2>⚠️ Riscos Ativos <span class="card-badge vermelho" id="badge-riscos">0</span></h2>
+        <h2>⚠️ Riscos Ativos
+          <span class="card-badge vermelho" id="badge-riscos">0</span>
+        </h2>
       </div>
       <div class="card-body">
         <div id="lista-riscos">
@@ -176,10 +180,13 @@
   <div id="section-presentes" class="section">
     <div class="card">
       <div class="card-header">
-        <h2>👥 Pessoas no Local Agora <span class="card-badge roxo" id="badge-presentes-full">0</span></h2>
+        <h2>👥 Pessoas no Local Agora
+          <span class="card-badge roxo" id="badge-presentes-full">0</span>
+        </h2>
         <div class="search-wrap">
           <input class="search-input" id="search-presentes" type="text"
-                 placeholder="Filtrar por nome ou CPF…" oninput="filtrarTabela('presentes')">
+                 placeholder="Filtrar por nome ou CPF…"
+                 oninput="filtrarTabela('presentes')">
         </div>
       </div>
       <div class="card-body table-wrap">
@@ -213,10 +220,13 @@
   <div id="section-medidas" class="section">
     <div class="card">
       <div class="card-header">
-        <h2>🛡️ Medidas Protetivas <span class="card-badge vermelho" id="badge-medidas-full">0</span></h2>
+        <h2>🛡️ Medidas Protetivas
+          <span class="card-badge vermelho" id="badge-medidas-full">0</span>
+        </h2>
         <div class="search-wrap">
           <input class="search-input" id="search-medidas" type="text"
-                 placeholder="Filtrar por processo ou nome…" oninput="filtrarTabela('medidas')">
+                 placeholder="Filtrar por processo ou nome…"
+                 oninput="filtrarTabela('medidas')">
         </div>
       </div>
       <div class="card-body table-wrap">
@@ -230,10 +240,13 @@
   <div id="section-agressores" class="section">
     <div class="card">
       <div class="card-header">
-        <h2>🚫 Agressores Cadastrados <span class="card-badge vermelho" id="badge-agressores-full">0</span></h2>
+        <h2>🚫 Agressores Cadastrados
+          <span class="card-badge vermelho" id="badge-agressores-full">0</span>
+        </h2>
         <div class="search-wrap">
           <input class="search-input" id="search-agressores" type="text"
-                 placeholder="Filtrar por nome ou CPF…" oninput="filtrarTabela('agressores')">
+                 placeholder="Filtrar por nome ou CPF…"
+                 oninput="filtrarTabela('agressores')">
         </div>
       </div>
       <div class="card-body table-wrap">
@@ -247,10 +260,13 @@
   <div id="section-vitimas" class="section">
     <div class="card">
       <div class="card-header">
-        <h2>💜 Vítimas Cadastradas <span class="card-badge amarelo" id="badge-vitimas-full">0</span></h2>
+        <h2>💜 Vítimas Cadastradas
+          <span class="card-badge amarelo" id="badge-vitimas-full">0</span>
+        </h2>
         <div class="search-wrap">
           <input class="search-input" id="search-vitimas" type="text"
-                 placeholder="Filtrar por nome ou CPF…" oninput="filtrarTabela('vitimas')">
+                 placeholder="Filtrar por nome ou CPF…"
+                 oninput="filtrarTabela('vitimas')">
         </div>
       </div>
       <div class="card-body table-wrap">
@@ -397,7 +413,7 @@ async function fazerLogout() {
   }
 }
 
-// ── Estado global ──────────────────────────────────────────────────────────
+/* ── ESTADO GLOBAL ──────────────────────────────────────── */
 const STATE = {
   presentes:[], historico:[], medidas:[],
   agressores:[], vitimas:[], stats:{},
@@ -405,6 +421,13 @@ const STATE = {
 
 // ── Charts ─────────────────────────────────────────────────────────────────
 let chartPizza = null, chartHoras = null;
+
+const CHART_DEFAULTS = {
+  font: { family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
+  color: '#64748b',
+};
+Chart.defaults.font = CHART_DEFAULTS.font;
+Chart.defaults.color = CHART_DEFAULTS.color;
 
 function initCharts() {
   chartPizza = new Chart(
@@ -435,7 +458,7 @@ function initCharts() {
   );
 }
 
-// ── Formatação ─────────────────────────────────────────────────────────────
+/* ── FORMATAÇÃO ─────────────────────────────────────────── */
 function fmtDT(iso) {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
@@ -489,7 +512,7 @@ async function refreshSection(id) {
   else if (id==='vitimas')       await loadVitimas();
 }
 
-// ── STATS ──────────────────────────────────────────────────────────────────
+/* ── STATS ──────────────────────────────────────────────── */
 async function loadStats() {
   try { const d = await apiFetch('/api/admin/stats'); STATE.stats=d; renderStats(d); }
   catch(e) { console.error('stats:',e); }
@@ -521,7 +544,7 @@ function renderStats(d) {
   }
 }
 
-// ── PRESENTES ─────────────────────────────────────────────────────────────
+/* ── PRESENTES ──────────────────────────────────────────── */
 async function loadPresentes() {
   try { const d = await apiFetch('/api/presentes'); STATE.presentes=d.presentes||[]; renderPresentes(); }
   catch(e) { console.error('presentes:',e); }
@@ -561,8 +584,8 @@ function renderPresentes() {
     `<div class="empty-state"><div class="es-icon">✅</div><p>Nenhuma situação de risco ativa no momento.</p></div>`);
 }
 
-// ── HISTÓRICO ─────────────────────────────────────────────────────────────
-async function loadHistorico() {
+/* ── HISTÓRICO ──────────────────────────────────────────── */
+async function loadHistorico(dataInicio, dataFim) {
   try {
     const val  = document.getElementById('filter-data-historico')?.value || '';
     const url  = '/api/admin/historico' + (val ? `?data=${encodeURIComponent(val)}` : '');
@@ -603,7 +626,36 @@ function renderHistorico(dataFiltro) {
   ));
 }
 
-// ── MEDIDAS ────────────────────────────────────────────────────────────────
+function fmtData(yyyy_mm_dd) {
+  if (!yyyy_mm_dd) return '';
+  const [y, m, d] = yyyy_mm_dd.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function filtrarHistoricoData() {
+  const ini = document.getElementById('hist-data-inicio').value;
+  const fim = document.getElementById('hist-data-fim').value;
+  if (!ini) { showAdminToast('Selecione ao menos a data inicial.'); return; }
+  loadHistorico(ini, fim || ini);
+}
+
+function resetarHistorico() {
+  document.getElementById('hist-data-inicio').value = '';
+  document.getElementById('hist-data-fim').value    = '';
+  loadHistorico();
+}
+
+function showAdminToast(msg) {
+  const existing = document.querySelector('.admin-toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'admin-toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+/* ── MEDIDAS ────────────────────────────────────────────── */
 async function loadMedidas() {
   try { const d=await apiFetch('/api/admin/medidas'); STATE.medidas=d.medidas||[]; renderMedidas(); }
   catch(e) { console.error('medidas:',e); }
@@ -624,7 +676,7 @@ function renderMedidas() {
   ));
 }
 
-// ── AGRESSORES ─────────────────────────────────────────────────────────────
+/* ── AGRESSORES ─────────────────────────────────────────── */
 async function loadAgressores() {
   try { const d=await apiFetch('/api/admin/agressores'); STATE.agressores=d.agressores||[]; renderAgressores(); }
   catch(e) { console.error('agressores:',e); }
@@ -647,7 +699,7 @@ function renderAgressores() {
   ));
 }
 
-// ── VÍTIMAS ────────────────────────────────────────────────────────────────
+/* ── VÍTIMAS ────────────────────────────────────────────── */
 async function loadVitimas() {
   try { const d=await apiFetch('/api/admin/vitimas'); STATE.vitimas=d.vitimas||[]; renderVitimas(); }
   catch(e) { console.error('vitimas:',e); }

@@ -1,6 +1,7 @@
-/* ═══════════════════════════════════════════════════
-   ADMIN DASHBOARD — SafeWoman / Proteção Maria da Penha
-   ═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   ADMIN DASHBOARD — Safe Woman  |  admin.css  v2.0
+   Dark theme profissional com destaque vermelho
+   ═══════════════════════════════════════════════════════════ */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -32,7 +33,7 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
-  color: var(--text-1);
+  color: var(--t1);
   min-height: 100vh;
 }
 
@@ -49,12 +50,11 @@ body {
 
 /* ── SIDEBAR ─────────────────────────────────────── */
 .sidebar {
-  position: fixed;
-  left: 0; top: 0; bottom: 0;
+  position: fixed; left: 0; top: 0; bottom: 0;
   width: var(--sidebar-w);
-  background: var(--roxo-esc);
-  display: flex;
-  flex-direction: column;
+  background: #0a0a12;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
   z-index: 200;
   transition: transform .25s ease;
 }
@@ -116,16 +116,13 @@ body {
   text-decoration: none;
   transition: color .15s;
 }
-.sidebar-footer a:hover { color: #fff; }
+.sidebar-footer a:hover { color: var(--t2); background: rgba(255,255,255,.04); }
 
-/* ── TOPBAR ─────────────────────────────────────── */
+/* ── TOPBAR ──────────────────────────────────────────────── */
 .topbar {
-  position: fixed;
-  top: 0;
-  left: var(--sidebar-w);
-  right: 0;
+  position: fixed; top: 0; left: var(--sidebar-w); right: 0;
   height: var(--header-h);
-  background: var(--card-bg);
+  background: #0b0b16;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -222,7 +219,7 @@ body {
 .btn-sair { border-color: var(--vermelho); color: var(--vermelho); }
 .btn-sair:hover { background: var(--vermelho-bg); }
 
-/* ── MAIN CONTENT ───────────────────────────────── */
+/* ── MAIN CONTENT ────────────────────────────────────────── */
 .main {
   margin-left: var(--sidebar-w);
   margin-top: var(--header-h);
@@ -230,9 +227,13 @@ body {
   min-height: calc(100vh - var(--header-h));
 }
 
-/* ── SECTIONS ───────────────────────────────────── */
-.section { display: none; }
+/* ── SECTIONS ────────────────────────────────────────────── */
+.section { display: none; animation: fadeIn .2s ease; }
 .section.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* ── STATS GRID ─────────────────────────────────── */
 .stats-grid {
@@ -251,6 +252,7 @@ body {
   align-items: flex-start;
   gap: 13px;
 }
+.stat-card:hover { border-color: var(--border-2); background: var(--card-alt); }
 
 .stat-icon {
   width: 46px;
@@ -262,6 +264,12 @@ body {
   font-size: 1.3rem;
   flex-shrink: 0;
 }
+.stat-card.roxo  .stat-icon { background: var(--purple-bg); }
+.stat-card.verde .stat-icon { background: var(--green-bg); }
+.stat-card.amarelo .stat-icon { background: var(--orange-bg); }
+.stat-card.vermelho .stat-icon { background: var(--red-bg); }
+.stat-card.azul .stat-icon { background: var(--blue-bg); }
+.stat-card.cinza .stat-icon { background: var(--gray-bg); }
 
 .stat-card.roxo    .stat-icon { background: var(--roxo-claro);  }
 .stat-card.verde   .stat-icon { background: var(--verde-bg);    }
@@ -304,6 +312,11 @@ body {
   align-items: center;
   gap: 8px;
 }
+.card-header a {
+  font-size: .8rem; color: var(--t3); font-weight: 600;
+  text-decoration: none; transition: color .15s;
+}
+.card-header a:hover { color: var(--red); }
 
 .card-badge {
   display: inline-flex;
@@ -368,7 +381,7 @@ tbody tr.row-agressor:hover { background: #ffe8e8; }
 tbody tr.row-vitima         { background: #fffde7; }
 tbody tr.row-vitima:hover   { background: #fff9c4; }
 
-/* ── TIPO BADGE ─────────────────────────────────── */
+/* ── TIPO BADGE ──────────────────────────────────────────── */
 .tipo-badge {
   display: inline-flex;
   align-items: center;
@@ -716,9 +729,7 @@ tbody tr.row-vitima:hover   { background: #fff9c4; }
   background: linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 6px;
-  height: 1em;
-  display: inline-block;
+  border-radius: 6px; height: 1em; display: inline-block;
 }
 @keyframes shimmer { to { background-position: -200% 0; } }
 

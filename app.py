@@ -320,7 +320,17 @@ def _extrair_nome_apos_rotulo(texto_unificado, linhas, padrao_rotulo):
 
 _SQL_PATH = Path(__file__).parent / "db.sql"
 
+#AQUI É PARA CONECTAR O POSTGRES LOCAL
+# def conectar():
+#     return psycopg2.connect(
+#         dbname=os.environ.get("DB_NAME",     "cnh_db"),
+#         user=os.environ.get("DB_USER",       "postgres"),
+#         password=os.environ.get("DB_PASSWORD", "@SV$ab!@#2506"),
+#         host=os.environ.get("DB_HOST",       "localhost"),
+#         port=os.environ.get("DB_PORT",       "5432"),
+#     )
 
+#RODAR O POSTGRES NO RAILWAY E USAR ESSA CONFIGURAÇÃO PARA CONECTAR
 def conectar():
     db_url = os.environ.get("DATABASE_URL")
     if db_url:
