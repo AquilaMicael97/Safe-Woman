@@ -14,7 +14,7 @@ chave2.json
 .env.local
 
 # Build local antigo (raiz)
-dist/
+/dist/
 frontend/.vite/
 
 # Dependências Node
