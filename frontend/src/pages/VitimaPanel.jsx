@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Shield, LogOut, Upload, X, FileText, CheckCircle, Clock } from 'lucide-react'
+import { LogOut, Upload, X, FileText, CheckCircle, Clock } from 'lucide-react'
 import { getSessaoVitima, encerrarSessaoVitima } from '../utils/auth'
 import { API_BASE } from '../utils/api'
+import logo from '../assets/logo.png'
 
 function Toast({ msg, tipo, visivel }) {
   return (
@@ -120,13 +121,9 @@ export default function VitimaPanel() {
       {/* Header */}
       <header className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-surface border-b border-white/8">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-vitima/15 border border-vitima/25 flex items-center justify-center">
-            <Shield size={15} className="text-vitima" />
+          <div className="bg-white rounded-xl p-1 shadow shadow-black/20">
+            <img src={logo} alt="Safe Woman" className="h-7 w-auto" />
           </div>
-          <span className="font-extrabold text-sm tracking-tight">
-            <span className="text-white">Safe</span>
-            <span className="text-vitima">Woman</span>
-          </span>
           <span className="text-[11px] font-semibold text-white/30 border border-white/10 rounded-full px-2.5 py-0.5">
             Área Protegida
           </span>

@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { Shield, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { getSessao, encerrarSessao } from '../utils/auth'
 import Portaria from '../components/tabs/Portaria'
+import logo from '../assets/logo.png'
 
 export default function PortariaPanel() {
   const navigate = useNavigate()
@@ -17,13 +18,9 @@ export default function PortariaPanel() {
       {/* Header fixo */}
       <header className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-surface border-b border-white/8">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-accent/15 border border-accent/25 flex items-center justify-center">
-            <Shield size={15} className="text-accent" />
+          <div className="bg-white rounded-xl p-1 shadow shadow-black/20">
+            <img src={logo} alt="Safe Woman" className="h-7 w-auto" />
           </div>
-          <span className="font-extrabold text-sm tracking-tight">
-            <span className="text-white">Safe</span>
-            <span className="text-accent">Woman</span>
-          </span>
           <span className="text-[11px] font-semibold text-white/30 border border-white/10 rounded-full px-2.5 py-0.5">
             Portaria
           </span>

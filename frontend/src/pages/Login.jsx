@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Shield, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { validarLogin, salvarSessao, getSessao, salvarSessaoVitima, getSessaoVitima } from '../utils/auth'
 import { API_BASE } from '../utils/api'
+import logo from '../assets/logo.png'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -129,14 +130,9 @@ export default function Login() {
       >
         {/* Logo */}
         <div className="text-center mb-7">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent/15 border border-accent/25 mb-4">
-            <Shield size={26} className="text-accent" />
+          <div className="inline-flex items-center justify-center bg-white rounded-2xl p-3 shadow-lg shadow-black/30 mb-1">
+            <img src={logo} alt="Safe Woman" className="h-28 w-auto" />
           </div>
-          <h1 className="text-[1.55rem] font-extrabold tracking-tight leading-none">
-            <span className="text-white">Safe</span>
-            <span className="text-accent">Woman</span>
-          </h1>
-          <p className="text-xs text-white/35 mt-2 font-medium">Segurança feminina em eventos</p>
         </div>
 
         {/* Tabs */}
