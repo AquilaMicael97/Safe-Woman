@@ -1,9 +1,0 @@
-__pycache__/
-*.pyc
-*.pyo
-.git/
-.env
-server.log
-cnh2.jpg
-teste_cnh.jpg
-medida_nova.jpg
