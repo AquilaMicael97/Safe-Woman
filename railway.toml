@@ -1,6 +1,3 @@
-[build]
-buildCommand = "pip install -r requirements.txt && cd frontend && npm install && npm run build"
-
 [deploy]
 startCommand = "python -m uvicorn api:server --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/api/presentes"
