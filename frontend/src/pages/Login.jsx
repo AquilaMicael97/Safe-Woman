@@ -181,7 +181,7 @@ export default function Login() {
                       type="text"
                       value={usuario}
                       onChange={e => { setUsuario(e.target.value); setErroPortaria('') }}
-                      placeholder="Ex: joao"
+                      placeholder="Digite seu usuário"
                       autoComplete="username"
                       autoCapitalize="none"
                       className="w-full bg-surface2 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/20 outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 transition-all"
