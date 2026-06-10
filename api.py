@@ -145,7 +145,9 @@ async def startup():
 #  STATIC FILES — React build (dist/)
 # ─────────────────────────────────────────────
 
-_DIST = pathlib.Path(__file__).parent / "dist"
+# Suporta build em dist/ (raiz) ou frontend/dist/ (Vite padrão)
+_root = pathlib.Path(__file__).parent
+_DIST = _root / "frontend" / "dist" if (_root / "frontend" / "dist").exists() else _root / "dist"
 
 if (_DIST / "assets").exists():
     server.mount("/assets", StaticFiles(directory=str(_DIST / "assets")), name="assets")
