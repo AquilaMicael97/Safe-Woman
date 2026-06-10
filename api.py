@@ -2,66 +2,295 @@ import os
 import sys
 import re
 import time
+import asyncio
+import hashlib
 import secrets
 import pathlib
 import tempfile
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"G:\Meu Drive\Biopark\Safe-Woman\chave2.json"
 sys.stdout.reconfigure(encoding="utf-8")
 
-import app as ocr
+import app as ocr  # app.py já configura as credenciais Google
 
-from fastapi import FastAPI, File, UploadFile, Query, Depends, HTTPException, Request
+from fastapi import FastAPI, File, Form, UploadFile, Query, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 # ─────────────────────────────────────────────
-#  AUTENTICAÇÃO ADMIN
+#  CREDENCIAIS
 # ─────────────────────────────────────────────
 
-ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
-ADMIN_PASS = os.environ.get("ADMIN_PASS", "safewoman@2025")
+ADMIN_USER     = os.environ.get("ADMIN_USER",     "admin")
+ADMIN_PASS     = os.environ.get("ADMIN_PASS",     "safewoman@2025")
+PORTARIA_USER  = os.environ.get("PORTARIA_USER",  "portaria")
+PORTARIA_PASS  = os.environ.get("PORTARIA_PASS",  "portaria@2025")
+RETENCAO_DIAS  = int(os.environ.get("RETENCAO_DIAS", "90"))
 
-# Sessões ativas: token -> timestamp de expiração
-_sessoes_admin: dict = {}
+_sessoes_admin:    dict = {}
+_sessoes_portaria: dict = {}
 
 _bearer = HTTPBearer(auto_error=False)
 
-def _requer_admin(
-    credenciais: HTTPAuthorizationCredentials = Depends(_bearer)
-) -> str:
+
+def _requer_admin(credenciais: HTTPAuthorizationCredentials = Depends(_bearer)) -> str:
     if not credenciais:
         raise HTTPException(status_code=401, detail="Token não fornecido")
-    token = credenciais.credentials
+    token  = credenciais.credentials
     expira = _sessoes_admin.get(token)
     if not expira or time.time() > expira:
         _sessoes_admin.pop(token, None)
         raise HTTPException(status_code=401, detail="Sessão inválida ou expirada")
     return token
 
-server = FastAPI(title="Maria Penha - Portaria")
+
+def _requer_portaria(credenciais: HTTPAuthorizationCredentials = Depends(_bearer)) -> str:
+    """Aceita token de portaria OU de admin."""
+    if not credenciais:
+        raise HTTPException(status_code=401, detail="Token não fornecido")
+    token  = credenciais.credentials
+    expira = _sessoes_portaria.get(token) or _sessoes_admin.get(token)
+    if not expira or time.time() > expira:
+        raise HTTPException(status_code=401, detail="Sessão inválida ou expirada")
+    return token
+
+
+server = FastAPI(title="Safe Woman — Portaria")
+
+# CORS — permite chamadas do Vercel e do dev local
+_origins = os.environ.get(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,http://localhost:5174"
+).split(",")
+
+server.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _origins],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ─────────────────────────────────────────────
 #  STARTUP
 # ─────────────────────────────────────────────
 
+def _segundos_ate_reset() -> float:
+    from datetime import datetime, timedelta
+    agora = datetime.now()
+    alvo = agora.replace(hour=17, minute=30, second=0, microsecond=0)
+    if agora >= alvo:
+        alvo += timedelta(days=1)
+    return (alvo - agora).total_seconds()
+
+
+async def _reset_diario():
+    """Aguarda as 17:30 e reseta o banco completo; repete todo dia."""
+    while True:
+        espera = _segundos_ate_reset()
+        print(f"[reset-diario] Próximo reset em {espera/3600:.1f}h (17:30)")
+        await asyncio.sleep(espera)
+        try:
+            ocr.resetar_banco()
+            print("[reset-diario] Banco resetado com sucesso.")
+        except Exception as e:
+            print(f"[reset-diario] Erro ao resetar banco: {e}")
+
+
+async def _purga_diaria():
+    """Roda uma vez por dia e remove presenças com mais de RETENCAO_DIAS dias."""
+    while True:
+        await asyncio.sleep(24 * 3600)
+        try:
+            total = ocr.purgar_presencas_antigas(RETENCAO_DIAS)
+            print(f"[retencao] Purga automática: {total} registro(s) removido(s) (>{RETENCAO_DIAS} dias)")
+        except Exception as e:
+            print(f"[retencao] Erro na purga automática: {e}")
+
+
 @server.on_event("startup")
-def startup():
+async def startup():
     ocr.criar_tabelas()
+    # Purga imediata ao iniciar (limpa backlog) + agendamento diário
+    try:
+        removidos = ocr.purgar_presencas_antigas(RETENCAO_DIAS)
+        if removidos:
+            print(f"[retencao] Startup: {removidos} registro(s) antigo(s) removido(s)")
+    except Exception as e:
+        print(f"[retencao] Erro na purga de startup: {e}")
+    asyncio.create_task(_purga_diaria())
+    asyncio.create_task(_reset_diario())
     print("Servidor iniciado. Acesse http://localhost:8000")
 
 
 # ─────────────────────────────────────────────
-#  STATIC FILES + HOME
+#  STATIC FILES — React build (dist/)
 # ─────────────────────────────────────────────
 
-server.mount("/static", StaticFiles(directory="static"), name="static")
+_DIST = pathlib.Path(__file__).parent / "dist"
 
-@server.get("/")
-async def root():
-    return FileResponse("static/index.html")
+if (_DIST / "assets").exists():
+    server.mount("/assets", StaticFiles(directory=str(_DIST / "assets")), name="assets")
+
+
+# ─────────────────────────────────────────────
+#  AUTH — PORTARIA
+# ─────────────────────────────────────────────
+
+@server.post("/api/portaria/login")
+async def portaria_login(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido")
+
+    usuario = body.get("usuario", "")
+    senha   = body.get("senha",   "")
+
+    if secrets.compare_digest(usuario, PORTARIA_USER) and secrets.compare_digest(senha, PORTARIA_PASS):
+        token = secrets.token_hex(32)
+        _sessoes_portaria[token] = time.time() + 12 * 3600
+        return {"status": "ok", "token": token, "tipo": "portaria", "nome": "Portaria"}
+
+    if secrets.compare_digest(usuario, ADMIN_USER) and secrets.compare_digest(senha, ADMIN_PASS):
+        token = secrets.token_hex(32)
+        _sessoes_admin[token] = time.time() + 8 * 3600
+        return {"status": "ok", "token": token, "tipo": "admin", "nome": "Administrador"}
+
+    raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+
+
+@server.post("/api/portaria/logout")
+async def portaria_logout(token: str = Depends(_requer_portaria)):
+    _sessoes_portaria.pop(token, None)
+    return {"status": "ok"}
+
+
+# ─────────────────────────────────────────────
+#  AUTH — VÍTIMA (pré-cadastro remoto)
+# ─────────────────────────────────────────────
+
+def _hash_senha(senha: str) -> str:
+    return hashlib.sha256(senha.encode()).hexdigest()
+
+
+@server.post("/api/vitima/registrar")
+async def vitima_registrar(request: Request):
+    """Cria conta de vítima para pré-cadastro remoto de medida protetiva."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido")
+
+    email = (body.get("email") or "").strip().lower()
+    senha = body.get("senha", "")
+
+    if not email or not senha or len(senha) < 6:
+        raise HTTPException(status_code=422, detail="E-mail e senha (mín. 6 caracteres) obrigatórios")
+
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO contas_vitima (email, senha_hash)
+            VALUES (%s, %s)
+            ON CONFLICT (email) DO NOTHING
+            RETURNING id
+        """, (email, _hash_senha(senha)))
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        cur.close(); conn.close()
+
+    if not row:
+        raise HTTPException(status_code=409, detail="E-mail já cadastrado")
+    return {"status": "ok", "mensagem": "Conta criada com sucesso"}
+
+
+@server.post("/api/vitima/login")
+async def vitima_login(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido")
+
+    email = (body.get("email") or "").strip().lower()
+    senha = body.get("senha", "")
+
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute("SELECT id FROM contas_vitima WHERE email=%s AND senha_hash=%s",
+                (email, _hash_senha(senha)))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+
+    if not row:
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos")
+
+    token = secrets.token_hex(32)
+    _sessoes_portaria[token] = time.time() + 24 * 3600
+    return {"status": "ok", "token": token, "tipo": "vitima", "vitima_id": row[0]}
+
+
+@server.post("/api/vitima/pre-cadastro-medida")
+async def vitima_pre_cadastro(
+    foto: UploadFile = File(...),
+    token: str = Depends(_requer_portaria),
+):
+    """Vítima faz upload da medida protetiva de casa. Fica pendente até confirmar CNH na entrada."""
+    tmp_path = await _salvar_temp(foto)
+    try:
+        dados = ocr.extrair_dados_medida_protetiva(str(tmp_path))
+
+        if dados["numero_processo"] == "Não encontrado":
+            return JSONResponse(status_code=422, content={
+                "status": "erro",
+                "mensagem": "Número do processo não identificado. Foto muito escura ou desfocada?"
+            })
+
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute("""
+            INSERT INTO pre_cadastros_medida
+                (numero_processo, nome_vitima, cpf_vitima, nome_agressor, cpf_agressor, data_emissao, vara)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (numero_processo) DO NOTHING
+            RETURNING id
+        """, (dados["numero_processo"], dados["nome_vitima"], dados["cpf_vitima"],
+              dados["nome_agressor"], dados.get("cpf_agressor"), dados["data_emissao"], dados["vara"]))
+        row = cur.fetchone()
+        conn.commit(); cur.close(); conn.close()
+
+        return {
+            "status"          : "ok",
+            "ja_existia"      : row is None,
+            "numero_processo" : dados["numero_processo"],
+            "nome_vitima"     : dados["nome_vitima"],
+            "nome_agressor"   : dados["nome_agressor"],
+            "mensagem"        : "Medida pré-cadastrada. Será ativada quando você apresentar sua CNH na entrada do evento."
+        }
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+
+@server.get("/api/vitima/status")
+async def vitima_status(token: str = Depends(_requer_portaria)):
+    """Retorna medidas pré-cadastradas ainda pendentes de ativação."""
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT numero_processo, nome_vitima, nome_agressor, data_emissao, ativada, criado_em
+        FROM pre_cadastros_medida ORDER BY criado_em DESC
+    """)
+    rows = cur.fetchall()
+    cur.close(); conn.close()
+    return {"status": "ok", "medidas": [
+        {"numero_processo": r[0], "nome_vitima": r[1], "nome_agressor": r[2],
+         "data_emissao": r[3], "ativada": r[4], "criado_em": str(r[5])}
+        for r in rows
+    ]}
 
 
 # ─────────────────────────────────────────────
@@ -249,6 +478,24 @@ async def cadastrar_medida(foto: UploadFile = File(...)):
         tmp_path.unlink(missing_ok=True)
 
 
+def _ativar_pre_cadastros(cpf_vitima: str):
+    """Promove medidas pré-cadastradas para o sistema principal quando a vítima apresenta sua CNH."""
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute("""
+        SELECT numero_processo, nome_vitima, cpf_vitima, nome_agressor, cpf_agressor, data_emissao, vara
+        FROM pre_cadastros_medida
+        WHERE cpf_vitima = %s AND ativada = FALSE
+    """, (cpf_vitima,))
+    pendentes = cur.fetchall()
+    for p in pendentes:
+        vitima_id   = ocr.salvar_vitima(p[1], p[2])
+        agressor_id = ocr.salvar_agressor(p[3], p[4])
+        ocr.salvar_medida_protetiva(p[0], vitima_id, agressor_id, p[5], p[6])
+        cur.execute("UPDATE pre_cadastros_medida SET ativada=TRUE WHERE numero_processo=%s", (p[0],))
+    conn.commit(); cur.close(); conn.close()
+
+
 # ─────────────────────────────────────────────
 #  ENDPOINT 2 — Verificar CNH na Portaria (ENTRADA)
 # ─────────────────────────────────────────────
@@ -277,6 +524,9 @@ async def verificar_cnh(foto: UploadFile = File(...)):
                 "vitimas_dentro" : [],
                 "agressores_dentro": [],
             }
+
+        # Ativa pré-cadastros da vítima (medidas cadastradas de casa)
+        _ativar_pre_cadastros(dados["cpf"])
 
         resultado = ocr.verificar_conflito_por_cpf(dados["cpf"])
         return _montar_resposta_verificacao(
@@ -406,15 +656,6 @@ async def listar_presentes():
 #  PAINEL ADMIN — login, logout e páginas
 # ─────────────────────────────────────────────
 
-@server.get("/login")
-async def login_page():
-    return FileResponse("static/login.html")
-
-
-@server.get("/admin")
-async def admin_page():
-    return FileResponse("static/admin.html")
-
 
 @server.post("/api/admin/login")
 async def admin_login(request: Request):
@@ -505,17 +746,28 @@ async def admin_stats(token: str = Depends(_requer_admin)):
 
 
 @server.get("/api/admin/historico")
-async def admin_historico(token: str = Depends(_requer_admin)):
-    """Histórico completo de entradas e saídas do dia atual."""
+async def admin_historico(
+    data: str = Query(default=None, description="Data no formato YYYY-MM-DD"),
+    token: str = Depends(_requer_admin),
+):
+    """Histórico de entradas e saídas. Sem `data` retorna o dia atual."""
     try:
         conn = ocr.conectar()
         cur  = conn.cursor()
-        cur.execute("""
-            SELECT cpf, nome, tipo, entrada_em, saida_em
-            FROM   presencas
-            WHERE  entrada_em::date = CURRENT_DATE
-            ORDER  BY entrada_em DESC
-        """)
+        if data:
+            cur.execute("""
+                SELECT cpf, nome, tipo, entrada_em, saida_em
+                FROM   presencas
+                WHERE  entrada_em::date = %s::date
+                ORDER  BY entrada_em DESC
+            """, (data,))
+        else:
+            cur.execute("""
+                SELECT cpf, nome, tipo, entrada_em, saida_em
+                FROM   presencas
+                WHERE  entrada_em::date = CURRENT_DATE
+                ORDER  BY entrada_em DESC
+            """)
         rows = cur.fetchall()
         cur.close()
         conn.close()
@@ -634,3 +886,75 @@ async def admin_vitimas(token: str = Depends(_requer_admin)):
         return {"status": "ok", "vitimas": vitimas}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
+
+
+@server.post("/api/admin/resetar-banco")
+async def resetar_banco_manual(
+    request: Request,
+    token: str = Depends(_requer_admin),
+):
+    """Reset completo do banco. Requer confirmação no body: {"confirmar": true}"""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo da requisição inválido")
+
+    if not body.get("confirmar"):
+        raise HTTPException(status_code=400, detail='Envie {"confirmar": true, "senha": "..."} para confirmar')
+
+    senha = body.get("senha", "")
+    if not secrets.compare_digest(senha, ADMIN_PASS):
+        raise HTTPException(status_code=401, detail="Senha incorreta")
+
+    ocr.resetar_banco()
+    return {"status": "ok", "mensagem": "Banco de dados resetado com sucesso."}
+
+
+@server.delete("/api/admin/presencas/antigas")
+async def purgar_presencas_antigas(
+    dias: int = Query(default=RETENCAO_DIAS, ge=1, le=3650),
+    token: str = Depends(_requer_admin),
+):
+    """Remove registros de presença com mais de `dias` dias (padrão: RETENCAO_DIAS)."""
+    try:
+        removidos = ocr.purgar_presencas_antigas(dias)
+        return {"status": "ok", "removidos": removidos, "dias": dias}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
+
+
+@server.get("/api/admin/presencas/retencao")
+async def info_retencao(token: str = Depends(_requer_admin)):
+    """Retorna quantos registros seriam removidos para cada janela de retenção."""
+    try:
+        from datetime import datetime, timedelta, timezone
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        resultado = {}
+        for dias in (30, 60, 90, 180, 365):
+            corte = datetime.now(timezone.utc) - timedelta(days=dias)
+            cur.execute("SELECT COUNT(*) FROM presencas WHERE entrada_em < %s", (corte,))
+            resultado[f"mais_de_{dias}_dias"] = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM presencas")
+        resultado["total"] = cur.fetchone()[0]
+        resultado["retencao_atual_dias"] = RETENCAO_DIAS
+        cur.close()
+        conn.close()
+        return {"status": "ok", **resultado}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
+
+
+# ─────────────────────────────────────────────
+#  SPA FALLBACK — deve ser o último route
+# ─────────────────────────────────────────────
+
+@server.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    index = _DIST / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Frontend não compilado. Execute: cd frontend && npm run build"},
+    )

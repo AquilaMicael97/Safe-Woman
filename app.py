@@ -1,13 +1,28 @@
 import os
 import re
 import sys
+import json
+import tempfile
 import psycopg2
+from pathlib import Path
 from google.cloud import vision
 
-# Força UTF-8 no terminal Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"G:\Meu Drive\Biopark\Safe-Woman\chave2.json"
+# ─── Credenciais Google Cloud ───────────────────────────────────────────────
+# Em produção: variável GOOGLE_CREDENTIALS_JSON com o conteúdo do JSON da chave
+# Em dev local: variável GOOGLE_APPLICATION_CREDENTIALS com o caminho do arquivo
+_cred_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
+if _cred_json and not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+    _tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
+    _tmp.write(_cred_json)
+    _tmp.close()
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _tmp.name
+elif not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+    # fallback para desenvolvimento local
+    _local = Path(__file__).parent / "chave2.json"
+    if _local.exists():
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(_local)
 
 
 # ─────────────────────────────────────────────
@@ -303,62 +318,28 @@ def _extrair_nome_apos_rotulo(texto_unificado, linhas, padrao_rotulo):
 #  BANCO DE DADOS — SCHEMA E OPERAÇÕES
 # ─────────────────────────────────────────────
 
-SQL_CRIAR_TABELAS = """
-CREATE TABLE IF NOT EXISTS vitimas (
-    id              SERIAL PRIMARY KEY,
-    nome            VARCHAR(255) NOT NULL,
-    cpf             VARCHAR(14)  UNIQUE,
-    data_nascimento VARCHAR(10),
-    criado_em       TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS agressores (
-    id        SERIAL PRIMARY KEY,
-    nome      VARCHAR(255) NOT NULL,
-    cpf       VARCHAR(14),
-    criado_em TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS medidas_protetivas (
-    id               SERIAL PRIMARY KEY,
-    numero_processo  VARCHAR(50) NOT NULL UNIQUE,
-    vitima_id        INT REFERENCES vitimas(id)    ON DELETE CASCADE,
-    agressor_id      INT REFERENCES agressores(id) ON DELETE CASCADE,
-    data_emissao     VARCHAR(10),
-    vara             VARCHAR(255),
-    ativa            BOOLEAN DEFAULT TRUE,
-    criado_em        TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS presencas (
-    id         SERIAL PRIMARY KEY,
-    cpf        VARCHAR(14)  NOT NULL,
-    nome       VARCHAR(255),
-    tipo       VARCHAR(10)  CHECK (tipo IN ('vitima','agressor','outro')) DEFAULT 'outro',
-    entrada_em TIMESTAMPTZ  DEFAULT NOW(),
-    saida_em   TIMESTAMPTZ
-);
-
--- Garante no máximo UMA presença ativa por CPF por vez
-CREATE UNIQUE INDEX IF NOT EXISTS idx_presenca_ativa
-    ON presencas(cpf) WHERE saida_em IS NULL;
-"""
+_SQL_PATH = Path(__file__).parent / "db.sql"
 
 
 def conectar():
+    db_url = os.environ.get("DATABASE_URL")
+    if db_url:
+        # Railway e outros serviços fornecem DATABASE_URL diretamente
+        return psycopg2.connect(db_url)
     return psycopg2.connect(
-        dbname="cnh_db",
-        user="postgres",
-        password="@SV$ab!@#2506",
-        host="localhost",
-        port="5432"
+        dbname=os.environ.get("DB_NAME",     "cnh_db"),
+        user=os.environ.get("DB_USER",       "postgres"),
+        password=os.environ.get("DB_PASSWORD", ""),
+        host=os.environ.get("DB_HOST",       "localhost"),
+        port=os.environ.get("DB_PORT",       "5432"),
     )
 
 
 def criar_tabelas():
+    sql = _SQL_PATH.read_text(encoding="utf-8")
     conn = conectar()
     cur = conn.cursor()
-    cur.execute(SQL_CRIAR_TABELAS)
+    cur.execute(sql)
     conn.commit()
     cur.close()
     conn.close()
@@ -502,6 +483,41 @@ def registrar_saida(cpf):
     if row:
         return {"nome": row[0], "tipo": row[1], "entrada_em": str(row[2])}
     return None
+
+
+def resetar_banco() -> dict:
+    """
+    Apaga todos os dados de todas as tabelas e reinicia os IDs (SERIAL).
+    Usado para reset diário em ambientes de demo/homologação.
+    """
+    conn = conectar()
+    cur  = conn.cursor()
+    cur.execute("""
+        TRUNCATE presencas, medidas_protetivas, vitimas, agressores
+        RESTART IDENTITY CASCADE
+    """)
+    conn.commit()
+    cur.close()
+    conn.close()
+    print("✔ Banco de dados resetado — todas as tabelas limpas.")
+    return {"resetado": True}
+
+
+def purgar_presencas_antigas(dias: int = 90) -> int:
+    """
+    Remove registros de presença com mais de `dias` dias (LGPD — retenção limitada).
+    Retorna o número de registros excluídos.
+    """
+    from datetime import datetime, timedelta, timezone
+    corte = datetime.now(timezone.utc) - timedelta(days=dias)
+    conn = conectar()
+    cur  = conn.cursor()
+    cur.execute("DELETE FROM presencas WHERE entrada_em < %s", (corte,))
+    total = cur.rowcount
+    conn.commit()
+    cur.close()
+    conn.close()
+    return total
 
 
 def listar_presentes():

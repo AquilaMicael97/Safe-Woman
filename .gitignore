@@ -8,6 +8,17 @@ settings.local.json
 
 # Credenciais e chaves (NUNCA subir)
 chave.json
+chave2.json
+*.json.key
+.env
+.env.local
+
+# Build do frontend
+dist/
+
+# Dependências Node
+node_modules/
+frontend/node_modules/
 
 # Logs
 *.log

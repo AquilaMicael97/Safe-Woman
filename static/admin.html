@@ -9,9 +9,13 @@
 </head>
 <body>
 
+<!-- Overlay mobile -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <!-- ═══════════════ SIDEBAR ═══════════════ -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
+    <span class="logo-shield">🛡️</span>
     <h1>Proteção<br>Maria da Penha</h1>
     <small>Painel Administrativo</small>
   </div>
@@ -26,7 +30,7 @@
     <span class="nav-icon">👥</span> Presentes Agora
   </a>
   <a class="nav-item" onclick="showSection('historico')" href="#">
-    <span class="nav-icon">📋</span> Histórico do Dia
+    <span class="nav-icon">📋</span> Histórico
   </a>
 
   <div class="nav-section">Cadastros</div>
@@ -40,6 +44,11 @@
     <span class="nav-icon">💜</span> Vítimas
   </a>
 
+  <div class="nav-section">Sistema</div>
+  <a class="nav-item" onclick="showSection('configuracoes')" href="#">
+    <span class="nav-icon">⚙️</span> Configurações
+  </a>
+
   <div class="sidebar-footer">
     <a href="/">← Voltar à Portaria</a>
   </div>
@@ -47,24 +56,28 @@
 
 <!-- ═══════════════ TOPBAR ═══════════════ -->
 <header class="topbar">
-  <span class="topbar-title" id="topbar-title">Dashboard</span>
+  <div class="topbar-left">
+    <button class="hamburger-btn" id="btn-hamburger" onclick="toggleSidebar()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <span class="topbar-title" id="topbar-title">Dashboard</span>
+  </div>
   <div class="topbar-right">
     <div class="badge-alerta" id="badge-alerta" style="display:none">
       🚨 <span id="badge-alerta-txt">Alerta ativo</span>
     </div>
     <span class="last-update">Atualizado: <span id="last-update-time">—</span></span>
     <button class="btn-refresh" onclick="refreshAll()">⟳ Atualizar</button>
-    <button class="btn-refresh" onclick="fazerLogout()" style="border-color:#b71c1c;color:#b71c1c">⏏ Sair</button>
+    <button class="btn-refresh btn-sair" onclick="fazerLogout()">⏏ Sair</button>
   </div>
 </header>
 
-<!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+<!-- ═══════════════ MAIN ═══════════════ -->
 <main class="main">
 
-  <!-- ── SEÇÃO: DASHBOARD ── -->
+  <!-- ── DASHBOARD ── -->
   <div id="section-dashboard" class="section active">
 
-    <!-- Banner de alerta urgência -->
     <div class="alerta-banner hidden" id="urgencia-banner">
       <div class="ab-icon">🚨</div>
       <div>
@@ -73,7 +86,6 @@
       </div>
     </div>
 
-    <!-- Stats cards -->
     <div class="stats-grid">
       <div class="stat-card roxo">
         <div class="stat-icon">👥</div>
@@ -125,50 +137,32 @@
       </div>
     </div>
 
-    <!-- Grid 2 colunas -->
     <div class="grid-2">
-
-      <!-- Distribuição de presentes -->
       <div class="card">
-        <div class="card-header">
-          <h2>📊 Distribuição de Presentes</h2>
-        </div>
-        <div class="chart-container">
-          <canvas id="chart-pizza"></canvas>
-        </div>
+        <div class="card-header"><h2>📊 Distribuição de Presentes</h2></div>
+        <div class="chart-container"><canvas id="chart-pizza"></canvas></div>
       </div>
-
-      <!-- Entradas por hora -->
       <div class="card">
-        <div class="card-header">
-          <h2>📈 Entradas por Hora — Hoje</h2>
-        </div>
-        <div class="chart-container">
-          <canvas id="chart-horas"></canvas>
-        </div>
+        <div class="card-header"><h2>📈 Entradas por Hora — Hoje</h2></div>
+        <div class="chart-container"><canvas id="chart-horas"></canvas></div>
       </div>
     </div>
 
-    <!-- Alertas ativos (agressor + vítima juntos) -->
     <div class="card">
       <div class="card-header">
         <h2>⚠️ Riscos Ativos <span class="card-badge vermelho" id="badge-riscos">0</span></h2>
       </div>
       <div class="card-body">
         <div id="lista-riscos">
-          <div class="empty-state">
-            <div class="es-icon">✅</div>
-            <p>Nenhuma situação de risco ativa no momento.</p>
-          </div>
+          <div class="empty-state"><div class="es-icon">✅</div><p>Nenhuma situação de risco ativa no momento.</p></div>
         </div>
       </div>
     </div>
 
-    <!-- Presentes agora — resumo -->
     <div class="card">
       <div class="card-header">
         <h2>👥 Presentes Agora <span class="card-badge roxo" id="badge-presentes-now">0</span></h2>
-        <a onclick="showSection('presentes')" href="#" style="font-size:.82rem;color:var(--roxo);font-weight:600">Ver todos →</a>
+        <a onclick="showSection('presentes')" href="#" class="ver-todos-link">Ver todos →</a>
       </div>
       <div class="card-body table-wrap">
         <div id="table-presentes-resumo"></div>
@@ -178,7 +172,7 @@
   </div><!-- /dashboard -->
 
 
-  <!-- ── SEÇÃO: PRESENTES ── -->
+  <!-- ── PRESENTES ── -->
   <div id="section-presentes" class="section">
     <div class="card">
       <div class="card-header">
@@ -195,16 +189,19 @@
   </div>
 
 
-  <!-- ── SEÇÃO: HISTÓRICO ── -->
+  <!-- ── HISTÓRICO ── -->
   <div id="section-historico" class="section">
     <div class="card">
       <div class="card-header">
-        <h2>📋 Histórico de Entradas e Saídas — Hoje</h2>
-        <div class="search-wrap">
+        <h2>📋 Histórico de Entradas e Saídas</h2>
+        <div class="header-filters">
+          <input class="date-input" id="filter-data-historico" type="date"
+                 onchange="loadHistorico()" title="Selecionar data" />
           <input class="search-input" id="search-historico" type="text"
-                 placeholder="Filtrar…" oninput="filtrarTabela('historico')">
+                 placeholder="Filtrar por nome…" oninput="filtrarTabela('historico')">
         </div>
       </div>
+      <div id="historico-resumo"></div>
       <div class="card-body table-wrap">
         <div id="table-historico"></div>
       </div>
@@ -212,7 +209,7 @@
   </div>
 
 
-  <!-- ── SEÇÃO: MEDIDAS ── -->
+  <!-- ── MEDIDAS ── -->
   <div id="section-medidas" class="section">
     <div class="card">
       <div class="card-header">
@@ -229,7 +226,7 @@
   </div>
 
 
-  <!-- ── SEÇÃO: AGRESSORES ── -->
+  <!-- ── AGRESSORES ── -->
   <div id="section-agressores" class="section">
     <div class="card">
       <div class="card-header">
@@ -246,7 +243,7 @@
   </div>
 
 
-  <!-- ── SEÇÃO: VÍTIMAS ── -->
+  <!-- ── VÍTIMAS ── -->
   <div id="section-vitimas" class="section">
     <div class="card">
       <div class="card-header">
@@ -262,18 +259,110 @@
     </div>
   </div>
 
+
+  <!-- ── CONFIGURAÇÕES ── -->
+  <div id="section-configuracoes" class="section">
+
+    <!-- Próximo reset automático -->
+    <div class="card">
+      <div class="card-header">
+        <h2>⏱️ Próximo Reset Automático</h2>
+      </div>
+      <div class="settings-body">
+        <div class="countdown-wrap">
+          <div class="countdown-display" id="countdown-display">--:--:--</div>
+          <div class="countdown-label">horas &nbsp;·&nbsp; minutos &nbsp;·&nbsp; segundos</div>
+        </div>
+        <p class="settings-desc">
+          O banco é resetado automaticamente todos os dias às <strong>17:30</strong>.<br>
+          Todos os registros (presenças, medidas protetivas, vítimas e agressores) são apagados
+          e os IDs são reiniciados do zero.
+        </p>
+      </div>
+    </div>
+
+    <!-- Reset manual -->
+    <div class="card card-danger">
+      <div class="card-header">
+        <h2>🗑️ Reset Manual do Banco</h2>
+        <span class="danger-label">Ação irreversível</span>
+      </div>
+      <div class="settings-body">
+        <p class="settings-desc">
+          Apaga <strong>todos os dados</strong> imediatamente, sem aguardar o horário automático.<br>
+          Será solicitada a confirmação com a senha de administrador.
+        </p>
+        <button class="btn-danger" onclick="abrirModalReset()">
+          🗑️&nbsp; Resetar Banco Agora
+        </button>
+      </div>
+    </div>
+
+    <!-- Retenção de dados LGPD -->
+    <div class="card">
+      <div class="card-header">
+        <h2>🗂️ Retenção de Dados — LGPD</h2>
+        <button class="btn-secondary" onclick="loadRetencao()">📊 Verificar</button>
+      </div>
+      <div class="card-body" id="retencao-info">
+        <div class="empty-state">
+          <div class="es-icon">🗂️</div>
+          <p>Clique em "Verificar" para consultar registros de presença por janela de retenção.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /configuracoes -->
+
 </main>
+
+
+<!-- ═══════════════ MODAL — RESET ═══════════════ -->
+<div class="modal-overlay" id="modal-reset" onclick="fecharModalOverlay(event)">
+  <div class="modal-card">
+    <div class="modal-icon-wrap">⚠️</div>
+    <h3 class="modal-titulo">Confirmar Reset do Banco</h3>
+    <p class="modal-desc">
+      Esta ação irá apagar <strong>permanentemente</strong> todos os registros do sistema.
+      Digite sua senha de administrador para confirmar.
+    </p>
+    <div class="modal-field">
+      <label for="modal-senha">Senha do Administrador</label>
+      <input type="password" id="modal-senha" placeholder="••••••••"
+             autocomplete="current-password"
+             onkeydown="if(event.key==='Enter') executarReset()" />
+    </div>
+    <div class="modal-erro" id="modal-erro"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="fecharModalReset()">Cancelar</button>
+      <button class="btn-danger" id="btn-confirmar-reset" onclick="executarReset()">
+        <span class="btn-text">Resetar</span>
+        <span class="btn-spinner-sm"></span>
+      </button>
+    </div>
+  </div>
+</div>
+
 
 <!-- ═══════════════ SCRIPT ═══════════════ -->
 <script>
+// ── XSS protection ────────────────────────────────────────────────────────
+function esc(s) {
+  if (s === null || s === undefined) return '—';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // ── Navegação ──────────────────────────────────────────────────────────────
 const SECTION_TITLES = {
-  dashboard:  'Dashboard',
-  presentes:  'Presentes Agora',
-  historico:  'Histórico do Dia',
-  medidas:    'Medidas Protetivas',
-  agressores: 'Agressores',
-  vitimas:    'Vítimas',
+  dashboard:     'Dashboard',
+  presentes:     'Presentes Agora',
+  historico:     'Histórico',
+  medidas:       'Medidas Protetivas',
+  agressores:    'Agressores',
+  vitimas:       'Vítimas',
+  configuracoes: 'Configurações',
 };
 
 function showSection(id) {
@@ -282,25 +371,27 @@ function showSection(id) {
   document.getElementById('section-' + id).classList.add('active');
   document.getElementById('topbar-title').textContent = SECTION_TITLES[id] || id;
   document.querySelector(`.nav-item[onclick*="${id}"]`).classList.add('active');
+  closeSidebar();
   refreshSection(id);
 }
 
-// ── Autenticação ───────────────────────────────────────────────────────────
-function getToken() {
-  return sessionStorage.getItem('admin_token') || '';
+// ── Hamburguer ─────────────────────────────────────────────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('visible');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('visible');
 }
 
-function authHeaders() {
-  return { 'Authorization': 'Bearer ' + getToken() };
-}
+// ── Autenticação ───────────────────────────────────────────────────────────
+function getToken()     { return sessionStorage.getItem('admin_token') || ''; }
+function authHeaders()  { return { 'Authorization': 'Bearer ' + getToken() }; }
 
 async function fazerLogout() {
-  try {
-    await fetch('/api/admin/logout', {
-      method: 'POST',
-      headers: authHeaders(),
-    });
-  } finally {
+  try { await fetch('/api/admin/logout', { method:'POST', headers:authHeaders() }); }
+  finally {
     sessionStorage.removeItem('admin_token');
     window.location.replace('/login');
   }
@@ -308,103 +399,68 @@ async function fazerLogout() {
 
 // ── Estado global ──────────────────────────────────────────────────────────
 const STATE = {
-  presentes:  [],
-  historico:  [],
-  medidas:    [],
-  agressores: [],
-  vitimas:    [],
-  stats:      {},
+  presentes:[], historico:[], medidas:[],
+  agressores:[], vitimas:[], stats:{},
 };
 
 // ── Charts ─────────────────────────────────────────────────────────────────
-let chartPizza = null;
-let chartHoras = null;
+let chartPizza = null, chartHoras = null;
 
 function initCharts() {
-  const ctxPizza = document.getElementById('chart-pizza').getContext('2d');
-  chartPizza = new Chart(ctxPizza, {
-    type: 'doughnut',
-    data: {
-      labels: ['Visitantes', 'Vítimas', 'Agressores'],
-      datasets: [{
-        data: [0, 0, 0],
-        backgroundColor: ['#90a4ae', '#e65100', '#b71c1c'],
-        borderWidth: 3,
-        borderColor: '#fff',
-        hoverOffset: 8,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } }
+  chartPizza = new Chart(
+    document.getElementById('chart-pizza').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Visitantes','Vítimas','Agressores'],
+        datasets:[{ data:[0,0,0], backgroundColor:['#90a4ae','#e65100','#b71c1c'],
+          borderWidth:3, borderColor:'#fff', hoverOffset:8 }]
       },
-      cutout: '62%',
-    }
-  });
-
-  const ctxHoras = document.getElementById('chart-horas').getContext('2d');
-  chartHoras = new Chart(ctxHoras, {
-    type: 'bar',
-    data: {
-      labels: [],
-      datasets: [{
-        label: 'Entradas',
-        data: [],
-        backgroundColor: 'rgba(123,31,162,.7)',
-        borderRadius: 5,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { grid: { display: false } },
-        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins:{ legend:{ position:'bottom', labels:{ font:{size:12}, padding:16 } } }
       }
     }
-  });
+  );
+  chartHoras = new Chart(
+    document.getElementById('chart-horas').getContext('2d'), {
+      type:'bar',
+      data:{ labels:[], datasets:[{ label:'Entradas', data:[],
+        backgroundColor:'rgba(123,31,162,.7)', borderRadius:5, borderSkipped:false }] },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{ display:false } },
+        scales:{ x:{ grid:{display:false} }, y:{ beginAtZero:true, ticks:{stepSize:1} } }
+      }
+    }
+  );
 }
 
 // ── Formatação ─────────────────────────────────────────────────────────────
 function fmtDT(iso) {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleString('pt-BR', {
-      day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'
-    });
-  } catch { return iso; }
+  try { return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+  catch { return iso; }
 }
-
 function fmtHora(iso) {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
-  } catch { return iso; }
+  try { return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+  catch { return iso; }
 }
-
 function tipoBadge(tipo) {
-  const map = {
-    agressor: '<span class="tipo-badge agressor">🚫 Agressor</span>',
-    vitima:   '<span class="tipo-badge vitima">💜 Vítima</span>',
-    outro:    '<span class="tipo-badge outro">👤 Visitante</span>',
-  };
-  return map[tipo] || map.outro;
+  return ({
+    agressor:'<span class="tipo-badge agressor">🚫 Agressor</span>',
+    vitima:  '<span class="tipo-badge vitima">💜 Vítima</span>',
+    outro:   '<span class="tipo-badge outro">👤 Visitante</span>',
+  })[tipo] || '<span class="tipo-badge outro">👤 Visitante</span>';
 }
-
 function rowClass(tipo) {
-  if (tipo === 'agressor') return 'row-agressor';
-  if (tipo === 'vitima')   return 'row-vitima';
-  return '';
+  return tipo==='agressor' ? 'row-agressor' : tipo==='vitima' ? 'row-vitima' : '';
 }
 
-// ── Fetch helpers ──────────────────────────────────────────────────────────
-async function apiFetch(url) {
-  const res = await fetch(url, { headers: authHeaders() });
-  if (res.status === 401) {
+// ── Fetch ──────────────────────────────────────────────────────────────────
+async function apiFetch(url, opts={}) {
+  const res = await fetch(url, { headers:authHeaders(), ...opts });
+  if (res.status===401) {
     sessionStorage.removeItem('admin_token');
     window.location.replace('/login');
     throw new Error('Sessão expirada');
@@ -413,168 +469,135 @@ async function apiFetch(url) {
   return res.json();
 }
 
-// ── Carrega todos os dados ─────────────────────────────────────────────────
+// ── Refresh ────────────────────────────────────────────────────────────────
 async function refreshAll() {
   document.getElementById('last-update-time').textContent = 'carregando…';
   await Promise.all([
-    loadStats(),
-    loadPresentes(),
-    loadHistorico(),
-    loadMedidas(),
-    loadAgressores(),
-    loadVitimas(),
+    loadStats(), loadPresentes(), loadHistorico(),
+    loadMedidas(), loadAgressores(), loadVitimas(),
   ]);
   document.getElementById('last-update-time').textContent =
-    new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
 async function refreshSection(id) {
-  if (id === 'dashboard') { await Promise.all([loadStats(), loadPresentes()]); }
-  else if (id === 'presentes') { await loadPresentes(); }
-  else if (id === 'historico') { await loadHistorico(); }
-  else if (id === 'medidas')   { await loadMedidas(); }
-  else if (id === 'agressores'){ await loadAgressores(); }
-  else if (id === 'vitimas')   { await loadVitimas(); }
+  if      (id==='dashboard')     await Promise.all([loadStats(), loadPresentes()]);
+  else if (id==='presentes')     await loadPresentes();
+  else if (id==='historico')     await loadHistorico();
+  else if (id==='medidas')       await loadMedidas();
+  else if (id==='agressores')    await loadAgressores();
+  else if (id==='vitimas')       await loadVitimas();
 }
 
 // ── STATS ──────────────────────────────────────────────────────────────────
 async function loadStats() {
-  try {
-    const data = await apiFetch('/api/admin/stats');
-    STATE.stats = data;
-    renderStats(data);
-  } catch (e) { console.error('stats:', e); }
+  try { const d = await apiFetch('/api/admin/stats'); STATE.stats=d; renderStats(d); }
+  catch(e) { console.error('stats:',e); }
 }
 
 function renderStats(d) {
-  set('stat-total-presentes', d.total_presentes ?? 0);
-  set('stat-agressores',       d.agressores_presentes ?? 0);
-  set('stat-vitimas',          d.vitimas_presentes ?? 0);
-  set('stat-medidas',          d.total_medidas ?? 0);
-  set('stat-entradas-hoje',    d.entradas_hoje ?? 0);
-  set('stat-saidas-hoje',      d.saidas_hoje ?? 0);
+  set('stat-total-presentes', d.total_presentes??0);
+  set('stat-agressores',       d.agressores_presentes??0);
+  set('stat-vitimas',          d.vitimas_presentes??0);
+  set('stat-medidas',          d.total_medidas??0);
+  set('stat-entradas-hoje',    d.entradas_hoje??0);
+  set('stat-saidas-hoje',      d.saidas_hoje??0);
 
-  // Badge de alerta global
-  const temRisco = (d.agressores_presentes > 0 && d.vitimas_presentes > 0);
-  const badgeAlerta = document.getElementById('badge-alerta');
-  const urgBanner   = document.getElementById('urgencia-banner');
-  if (temRisco) {
-    badgeAlerta.style.display = 'inline-flex';
-    document.getElementById('badge-alerta-txt').textContent =
-      `${d.agressores_presentes} agressor(es) no local`;
-    urgBanner.classList.remove('hidden');
-  } else {
-    badgeAlerta.style.display = 'none';
-    urgBanner.classList.add('hidden');
-  }
+  const temRisco = (d.agressores_presentes>0 && d.vitimas_presentes>0);
+  document.getElementById('badge-alerta').style.display = temRisco?'inline-flex':'none';
+  if (temRisco)
+    document.getElementById('badge-alerta-txt').textContent = `${d.agressores_presentes} agressor(es) no local`;
+  document.getElementById('urgencia-banner').classList.toggle('hidden', !temRisco);
 
-  // Chart pizza
   if (chartPizza) {
-    const outros = (d.total_presentes ?? 0) - (d.vitimas_presentes ?? 0) - (d.agressores_presentes ?? 0);
-    chartPizza.data.datasets[0].data = [
-      Math.max(0, outros),
-      d.vitimas_presentes ?? 0,
-      d.agressores_presentes ?? 0,
-    ];
+    const outros = Math.max(0,(d.total_presentes??0)-(d.vitimas_presentes??0)-(d.agressores_presentes??0));
+    chartPizza.data.datasets[0].data = [outros, d.vitimas_presentes??0, d.agressores_presentes??0];
     chartPizza.update();
   }
-
-  // Chart por hora
   if (chartHoras && d.entradas_por_hora) {
-    chartHoras.data.labels   = d.entradas_por_hora.map(h => h.hora + 'h');
-    chartHoras.data.datasets[0].data = d.entradas_por_hora.map(h => h.total);
+    chartHoras.data.labels = d.entradas_por_hora.map(h=>h.hora+'h');
+    chartHoras.data.datasets[0].data = d.entradas_por_hora.map(h=>h.total);
     chartHoras.update();
   }
 }
 
 // ── PRESENTES ─────────────────────────────────────────────────────────────
 async function loadPresentes() {
-  try {
-    const data = await apiFetch('/api/presentes');
-    STATE.presentes = data.presentes || [];
-    renderPresentes();
-  } catch (e) { console.error('presentes:', e); }
+  try { const d = await apiFetch('/api/presentes'); STATE.presentes=d.presentes||[]; renderPresentes(); }
+  catch(e) { console.error('presentes:',e); }
 }
 
 function renderPresentes() {
-  const lista = applyFilter(STATE.presentes, 'presentes', ['nome','cpf']);
-  const total = STATE.presentes.length;
+  const lista = applyFilter(STATE.presentes,'presentes',['nome','cpf']);
+  set('badge-presentes-now',  STATE.presentes.length);
+  set('badge-presentes-full', STATE.presentes.length);
 
-  set('badge-presentes-now',  total);
-  set('badge-presentes-full', total);
+  const rowFn = r => `<tr class="${rowClass(r.tipo)}">
+    <td class="td-nome">${esc(r.nome)}</td>
+    <td class="td-cpf">${esc(r.cpf)}</td>
+    <td>${tipoBadge(r.tipo)}</td>
+    <td class="td-hora">${fmtDT(r.entrada_em)}</td>
+  </tr>`;
 
-  const tbl = buildTable(lista,
-    ['Nome', 'CPF', 'Tipo', 'Entrada'],
-    r => `<tr class="${rowClass(r.tipo)}">
-      <td class="td-nome">${r.nome || '—'}</td>
-      <td class="td-cpf">${r.cpf || '—'}</td>
-      <td>${tipoBadge(r.tipo)}</td>
-      <td class="td-hora">${fmtDT(r.entrada_em)}</td>
-    </tr>`
-  );
+  set('table-presentes-full',   buildTable(lista,['Nome','CPF','Tipo','Entrada'],rowFn));
+  set('table-presentes-resumo', buildTable(lista.slice(0,8),['Nome','CPF','Tipo','Entrada'],rowFn));
 
-  set('table-presentes-full', tbl);
-  set('table-presentes-resumo', buildTable(lista.slice(0, 8),
-    ['Nome', 'CPF', 'Tipo', 'Entrada'],
-    r => `<tr class="${rowClass(r.tipo)}">
-      <td class="td-nome">${r.nome || '—'}</td>
-      <td class="td-cpf">${r.cpf || '—'}</td>
-      <td>${tipoBadge(r.tipo)}</td>
-      <td class="td-hora">${fmtDT(r.entrada_em)}</td>
-    </tr>`
-  ));
-
-  // Riscos: agressores com vítimas de medida ativa também presentes
-  const agressores = STATE.presentes.filter(p => p.tipo === 'agressor');
-  const vitimas    = new Set(STATE.presentes.filter(p => p.tipo === 'vitima').map(p => p.cpf));
-  let riscosHTML = '';
-  let countRiscos = 0;
-
-  agressores.forEach(ag => {
-    if (ag.contrapartes_dentro && ag.contrapartes_dentro.length > 0) {
+  let riscosHTML='', countRiscos=0;
+  STATE.presentes.filter(p=>p.tipo==='agressor').forEach(ag => {
+    if (ag.contrapartes_dentro?.length>0) {
       countRiscos++;
-      riscosHTML += `<div style="padding:14px 18px;border-bottom:1px solid #f0f0f0">
-        <b style="color:var(--vermelho)">${ag.nome}</b>
+      riscosHTML += `<div class="risco-row">
+        <b style="color:var(--vermelho)">${esc(ag.nome)}</b>
         <span class="tipo-badge agressor" style="margin-left:8px">Agressor</span>
-        <div style="font-size:.8rem;color:var(--text-2);margin-top:4px">
+        <div class="risco-sub">
           Contraparte(s) com medida protetiva também no local:
-          ${ag.contrapartes_dentro.map(c => `<b>${c.nome}</b>`).join(', ')}
+          ${ag.contrapartes_dentro.map(c=>`<b>${esc(c.nome)}</b>`).join(', ')}
         </div>
       </div>`;
     }
   });
-
   set('badge-riscos', countRiscos);
-  if (countRiscos > 0) {
-    set('lista-riscos', riscosHTML);
-  } else {
-    set('lista-riscos', `<div class="empty-state"><div class="es-icon">✅</div>
-      <p>Nenhuma situação de risco ativa no momento.</p></div>`);
-  }
+  set('lista-riscos', countRiscos>0 ? riscosHTML :
+    `<div class="empty-state"><div class="es-icon">✅</div><p>Nenhuma situação de risco ativa no momento.</p></div>`);
 }
 
 // ── HISTÓRICO ─────────────────────────────────────────────────────────────
 async function loadHistorico() {
   try {
-    const data = await apiFetch('/api/admin/historico');
-    STATE.historico = data.historico || [];
-    renderHistorico();
-  } catch (e) { console.error('historico:', e); }
+    const val  = document.getElementById('filter-data-historico')?.value || '';
+    const url  = '/api/admin/historico' + (val ? `?data=${encodeURIComponent(val)}` : '');
+    const resp = await apiFetch(url);
+    STATE.historico = resp.historico||[];
+    renderHistorico(val);
+  } catch(e) { console.error('historico:',e); }
 }
 
-function renderHistorico() {
-  const lista = applyFilter(STATE.historico, 'historico', ['nome','cpf']);
+function renderHistorico(dataFiltro) {
+  const lista  = applyFilter(STATE.historico,'historico',['nome','cpf']);
+  const total  = STATE.historico.length;
+  const dentro = STATE.historico.filter(r=>!r.saida_em).length;
+  const label  = dataFiltro
+    ? new Date(dataFiltro+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})
+    : 'hoje';
+
+  set('historico-resumo', `<div class="historico-bar">
+    <span>📅 ${esc(label)}</span>
+    <span><strong>${total}</strong> entrada(s)</span>
+    <span><strong>${dentro}</strong> ainda no local</span>
+    <span><strong>${total-dentro}</strong> saída(s) confirmadas</span>
+  </div>`);
+
   set('table-historico', buildTable(lista,
-    ['Nome', 'CPF', 'Tipo', 'Entrada', 'Saída', 'Status'],
+    ['Nome','CPF','Tipo','Entrada','Saída','Status'],
     r => {
       const ainda = !r.saida_em;
       return `<tr class="${rowClass(r.tipo)}">
-        <td class="td-nome">${r.nome || '—'}</td>
-        <td class="td-cpf">${r.cpf || '—'}</td>
+        <td class="td-nome">${esc(r.nome)}</td>
+        <td class="td-cpf">${esc(r.cpf)}</td>
         <td>${tipoBadge(r.tipo)}</td>
         <td class="td-hora">${fmtHora(r.entrada_em)}</td>
-        <td class="td-hora">${ainda ? '—' : fmtHora(r.saida_em)}</td>
-        <td><span class="tipo-badge ${ainda ? 'vitima' : 'ok'}">${ainda ? 'No local' : 'Saiu'}</span></td>
+        <td class="td-hora">${ainda?'—':fmtHora(r.saida_em)}</td>
+        <td><span class="tipo-badge ${ainda?'presente':'ok'}">${ainda?'No local':'Saiu'}</span></td>
       </tr>`;
     }
   ));
@@ -582,50 +605,42 @@ function renderHistorico() {
 
 // ── MEDIDAS ────────────────────────────────────────────────────────────────
 async function loadMedidas() {
-  try {
-    const data = await apiFetch('/api/admin/medidas');
-    STATE.medidas = data.medidas || [];
-    renderMedidas();
-  } catch (e) { console.error('medidas:', e); }
+  try { const d=await apiFetch('/api/admin/medidas'); STATE.medidas=d.medidas||[]; renderMedidas(); }
+  catch(e) { console.error('medidas:',e); }
 }
-
 function renderMedidas() {
-  const lista = applyFilter(STATE.medidas, 'medidas', ['numero_processo','nome_vitima','nome_agressor']);
+  const lista = applyFilter(STATE.medidas,'medidas',['numero_processo','nome_vitima','nome_agressor']);
   set('badge-medidas-full', STATE.medidas.length);
   set('table-medidas', buildTable(lista,
-    ['Processo', 'Vítima', 'Agressor', 'Emissão', 'Vara', 'Status'],
+    ['Processo','Vítima','Agressor','Emissão','Vara','Status'],
     r => `<tr>
-      <td><span class="proc-badge">${r.numero_processo || '—'}</span></td>
-      <td class="td-nome">${r.nome_vitima || '—'}</td>
-      <td class="td-nome" style="color:var(--vermelho)">${r.nome_agressor || '—'}</td>
-      <td class="td-hora">${r.data_emissao || '—'}</td>
-      <td style="font-size:.8rem;color:var(--text-2);max-width:180px;overflow:hidden;text-overflow:ellipsis">${r.vara || '—'}</td>
-      <td><span class="tipo-badge ${r.ativa ? 'ativa' : 'ok'}">${r.ativa ? '🔴 Ativa' : '✅ Inativa'}</span></td>
+      <td><span class="proc-badge">${esc(r.numero_processo)}</span></td>
+      <td class="td-nome">${esc(r.nome_vitima)}</td>
+      <td class="td-nome" style="color:var(--vermelho)">${esc(r.nome_agressor)}</td>
+      <td class="td-hora">${esc(r.data_emissao)||'—'}</td>
+      <td class="td-vara">${esc(r.vara)||'—'}</td>
+      <td><span class="tipo-badge ${r.ativa?'ativa':'ok'}">${r.ativa?'🔴 Ativa':'✅ Inativa'}</span></td>
     </tr>`
   ));
 }
 
 // ── AGRESSORES ─────────────────────────────────────────────────────────────
 async function loadAgressores() {
-  try {
-    const data = await apiFetch('/api/admin/agressores');
-    STATE.agressores = data.agressores || [];
-    renderAgressores();
-  } catch (e) { console.error('agressores:', e); }
+  try { const d=await apiFetch('/api/admin/agressores'); STATE.agressores=d.agressores||[]; renderAgressores(); }
+  catch(e) { console.error('agressores:',e); }
 }
-
 function renderAgressores() {
-  const lista = applyFilter(STATE.agressores, 'agressores', ['nome','cpf']);
+  const lista = applyFilter(STATE.agressores,'agressores',['nome','cpf']);
   set('badge-agressores-full', STATE.agressores.length);
   set('table-agressores', buildTable(lista,
-    ['Nome', 'CPF', 'Medidas Ativas', 'No Local Agora', 'Cadastrado em'],
+    ['Nome','CPF','Medidas Ativas','No Local Agora','Cadastrado em'],
     r => {
-      const noloc = STATE.presentes.find(p => p.cpf === r.cpf && p.tipo === 'agressor');
-      return `<tr class="${noloc ? 'row-agressor' : ''}">
-        <td class="td-nome">${r.nome || '—'}</td>
-        <td class="td-cpf">${r.cpf || 'Não informado'}</td>
-        <td><span class="tipo-badge ${r.total_medidas > 0 ? 'ativa' : 'ok'}">${r.total_medidas}</span></td>
-        <td>${noloc ? '<span class="tipo-badge agressor">Sim</span>' : '<span class="tipo-badge ok">Não</span>'}</td>
+      const noloc = STATE.presentes.find(p=>p.cpf===r.cpf && p.tipo==='agressor');
+      return `<tr class="${noloc?'row-agressor':''}">
+        <td class="td-nome">${esc(r.nome)}</td>
+        <td class="td-cpf">${r.cpf?esc(r.cpf):'<span class="nd">Não informado</span>'}</td>
+        <td><span class="tipo-badge ${r.total_medidas>0?'ativa':'ok'}">${r.total_medidas}</span></td>
+        <td>${noloc?'<span class="tipo-badge agressor">Sim</span>':'<span class="tipo-badge ok">Não</span>'}</td>
         <td class="td-hora">${fmtDT(r.criado_em)}</td>
       </tr>`;
     }
@@ -634,74 +649,170 @@ function renderAgressores() {
 
 // ── VÍTIMAS ────────────────────────────────────────────────────────────────
 async function loadVitimas() {
-  try {
-    const data = await apiFetch('/api/admin/vitimas');
-    STATE.vitimas = data.vitimas || [];
-    renderVitimas();
-  } catch (e) { console.error('vitimas:', e); }
+  try { const d=await apiFetch('/api/admin/vitimas'); STATE.vitimas=d.vitimas||[]; renderVitimas(); }
+  catch(e) { console.error('vitimas:',e); }
 }
-
 function renderVitimas() {
-  const lista = applyFilter(STATE.vitimas, 'vitimas', ['nome','cpf']);
+  const lista = applyFilter(STATE.vitimas,'vitimas',['nome','cpf']);
   set('badge-vitimas-full', STATE.vitimas.length);
   set('table-vitimas', buildTable(lista,
-    ['Nome', 'CPF', 'Nascimento', 'Medidas Ativas', 'No Local Agora', 'Cadastrada em'],
+    ['Nome','CPF','Nascimento','Medidas Ativas','No Local Agora','Cadastrada em'],
     r => {
-      const noloc = STATE.presentes.find(p => p.cpf === r.cpf && p.tipo === 'vitima');
-      return `<tr class="${noloc ? 'row-vitima' : ''}">
-        <td class="td-nome">${r.nome || '—'}</td>
-        <td class="td-cpf">${r.cpf || 'Não informado'}</td>
-        <td class="td-hora">${r.data_nascimento || '—'}</td>
-        <td><span class="tipo-badge ${r.total_medidas > 0 ? 'ativa' : 'ok'}">${r.total_medidas}</span></td>
-        <td>${noloc ? '<span class="tipo-badge vitima">Sim</span>' : '<span class="tipo-badge ok">Não</span>'}</td>
+      const noloc = STATE.presentes.find(p=>p.cpf===r.cpf && p.tipo==='vitima');
+      return `<tr class="${noloc?'row-vitima':''}">
+        <td class="td-nome">${esc(r.nome)}</td>
+        <td class="td-cpf">${r.cpf?esc(r.cpf):'<span class="nd">Não informado</span>'}</td>
+        <td class="td-hora">${esc(r.data_nascimento)||'—'}</td>
+        <td><span class="tipo-badge ${r.total_medidas>0?'ativa':'ok'}">${r.total_medidas}</span></td>
+        <td>${noloc?'<span class="tipo-badge vitima">Sim</span>':'<span class="tipo-badge ok">Não</span>'}</td>
         <td class="td-hora">${fmtDT(r.criado_em)}</td>
       </tr>`;
     }
   ));
 }
 
-// ── Helpers de render ──────────────────────────────────────────────────────
+// ── COUNTDOWN (17:30) ──────────────────────────────────────────────────────
+function atualizarCountdown() {
+  const agora = new Date();
+  const alvo  = new Date(agora);
+  alvo.setHours(17,30,0,0);
+  if (agora >= alvo) alvo.setDate(alvo.getDate()+1);
+  const diff = alvo - agora;
+  const h = Math.floor(diff/3600000);
+  const m = Math.floor((diff%3600000)/60000);
+  const s = Math.floor((diff%60000)/1000);
+  const p = n => String(n).padStart(2,'0');
+  const el = document.getElementById('countdown-display');
+  if (el) el.textContent = `${p(h)}:${p(m)}:${p(s)}`;
+}
+
+// ── RETENÇÃO LGPD ──────────────────────────────────────────────────────────
+async function loadRetencao() {
+  set('retencao-info','<div class="empty-state"><div class="es-icon">⏳</div><p>Consultando…</p></div>');
+  try {
+    const d = await apiFetch('/api/admin/presencas/retencao');
+    const janelas = [
+      { label:'>30 dias',  key:'mais_de_30_dias'  },
+      { label:'>60 dias',  key:'mais_de_60_dias'  },
+      { label:'>90 dias',  key:'mais_de_90_dias'  },
+      { label:'>180 dias', key:'mais_de_180_dias' },
+      { label:'>365 dias', key:'mais_de_365_dias' },
+    ];
+    const maxVal = Math.max(1,...janelas.map(j=>d[j.key]||0));
+    set('retencao-info', `
+      <div class="ret-wrap">
+        ${janelas.map(j => {
+          const val = d[j.key]||0;
+          const pct = Math.round((val/maxVal)*100);
+          return `<div class="ret-row">
+            <span class="ret-label">${j.label}</span>
+            <div class="ret-bar-track"><div class="ret-bar-fill ${val>0?'has':'zero'}" style="width:${pct}%"></div></div>
+            <span class="ret-val ${val>0?'warn':''}">${val}</span>
+          </div>`;
+        }).join('')}
+        <div class="ret-footer">
+          <span>Total de registros: <strong>${d.total}</strong></span>
+          <span>Retenção ativa: <strong>${d.retencao_atual_dias} dias</strong>
+            <code>RETENCAO_DIAS</code></span>
+        </div>
+      </div>`);
+  } catch(e) {
+    set('retencao-info',`<div class="empty-state"><div class="es-icon">❌</div><p>Erro: ${esc(String(e))}</p></div>`);
+  }
+}
+
+// ── MODAL RESET ────────────────────────────────────────────────────────────
+function abrirModalReset() {
+  document.getElementById('modal-senha').value = '';
+  document.getElementById('modal-erro').textContent = '';
+  document.getElementById('modal-reset').classList.add('open');
+  setTimeout(() => document.getElementById('modal-senha').focus(), 120);
+}
+
+function fecharModalReset() {
+  document.getElementById('modal-reset').classList.remove('open');
+}
+
+function fecharModalOverlay(event) {
+  if (event.target === document.getElementById('modal-reset')) fecharModalReset();
+}
+
+async function executarReset() {
+  const senha  = document.getElementById('modal-senha').value;
+  const erroEl = document.getElementById('modal-erro');
+  const btn    = document.getElementById('btn-confirmar-reset');
+
+  if (!senha) { erroEl.textContent = 'Digite a senha para confirmar.'; return; }
+
+  erroEl.textContent = '';
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    const res  = await fetch('/api/admin/resetar-banco', {
+      method:'POST',
+      headers:{ ...authHeaders(), 'Content-Type':'application/json' },
+      body: JSON.stringify({ confirmar:true, senha }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      fecharModalReset();
+      await refreshAll();
+      alert('✅ Banco de dados resetado com sucesso!');
+    } else {
+      erroEl.textContent = data.detail || 'Erro ao resetar. Verifique a senha.';
+    }
+  } catch {
+    erroEl.textContent = 'Erro de conexão. Tente novamente.';
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 function set(id, html) {
   const el = document.getElementById(id);
   if (el) el.innerHTML = String(html);
 }
 
 function buildTable(rows, headers, rowFn) {
-  if (!rows || rows.length === 0) {
+  if (!rows?.length)
     return `<div class="empty-state"><div class="es-icon">📭</div><p>Nenhum registro encontrado.</p></div>`;
-  }
-  const ths = headers.map(h => `<th>${h}</th>`).join('');
-  const trs = rows.map(rowFn).join('');
-  return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  return `<table>
+    <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(rowFn).join('')}</tbody>
+  </table>`;
 }
 
-// ── Filtro ─────────────────────────────────────────────────────────────────
 function applyFilter(data, key, fields) {
-  const input = document.getElementById('search-' + key);
-  if (!input || !input.value.trim()) return data;
-  const q = input.value.trim().toLowerCase();
-  return data.filter(r => fields.some(f => (r[f] || '').toLowerCase().includes(q)));
+  const inp = document.getElementById('search-'+key);
+  if (!inp?.value.trim()) return data;
+  const q = inp.value.trim().toLowerCase();
+  return data.filter(r => fields.some(f=>(r[f]||'').toLowerCase().includes(q)));
 }
 
 function filtrarTabela(key) {
-  if (key === 'presentes') renderPresentes();
-  else if (key === 'historico') renderHistorico();
-  else if (key === 'medidas')   renderMedidas();
-  else if (key === 'agressores') renderAgressores();
-  else if (key === 'vitimas')    renderVitimas();
+  if      (key==='presentes')  renderPresentes();
+  else if (key==='historico')  renderHistorico(document.getElementById('filter-data-historico')?.value||'');
+  else if (key==='medidas')    renderMedidas();
+  else if (key==='agressores') renderAgressores();
+  else if (key==='vitimas')    renderVitimas();
 }
 
-// ── Inicialização ──────────────────────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  // Redireciona para login se não houver token
-  if (!getToken()) {
-    window.location.replace('/login');
-    return;
-  }
+  if (!getToken()) { window.location.replace('/login'); return; }
+
+  // Data de hoje no filtro de histórico
+  document.getElementById('filter-data-historico').value = new Date().toISOString().slice(0,10);
+
   initCharts();
   refreshAll();
-  // Atualiza automaticamente a cada 30 segundos
   setInterval(refreshAll, 30_000);
+  setInterval(atualizarCountdown, 1000);
+  atualizarCountdown();
 });
 </script>
 </body>

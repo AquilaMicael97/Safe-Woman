@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Safe Woman — Área da Vítima</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0a0a0f;
+      --surface: #13131a;
+      --surface2:#1c1c28;
+      --border:  rgba(255,255,255,.08);
+      --border2: rgba(255,255,255,.13);
+      --text:    #f0f0f5;
+      --text2:   #8888a0;
+      --text3:   #55556a;
+      --accent:  #ff6b9d;
+      --accent2: #ff8fa3;
+      --verde:   #00e676;
+      --vermelho:#ff4d6d;
+      --amarelo: #ffab40;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,10,15,.9);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .header-brand { display: flex; align-items: center; gap: 10px; }
+    .header-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .9rem;
+      box-shadow: 0 4px 12px rgba(255,107,157,.3);
+    }
+    .header-name { font-size: .9rem; font-weight: 800; color: var(--text); }
+    .btn-sair {
+      background: none; border: 1px solid var(--border2);
+      border-radius: 8px; padding: 6px 12px;
+      font-size: .72rem; font-weight: 600; color: var(--text2); cursor: pointer;
+      font-family: 'Inter', sans-serif; transition: all .15s;
+    }
+    .btn-sair:hover { border-color: var(--vermelho); color: var(--vermelho); }
+
+    /* CONTEÚDO */
+    .content { max-width: 480px; margin: 0 auto; padding: 24px 20px; }
+
+    /* HERO */
+    .hero {
+      background: linear-gradient(135deg, rgba(255,107,157,.12), rgba(255,143,163,.06));
+      border: 1px solid rgba(255,107,157,.2);
+      border-radius: 18px;
+      padding: 24px 20px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .hero-icon  { font-size: 2.4rem; margin-bottom: 10px; }
+    .hero-title { font-size: 1.1rem; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+    .hero-sub   { font-size: .8rem; color: var(--text2); line-height: 1.55; }
+
+    /* STATUS BADGE */
+    .status-card {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    .status-row { display: flex; align-items: center; gap: 12px; }
+    .status-icon { font-size: 1.8rem; flex-shrink: 0; }
+    .status-title { font-size: .88rem; font-weight: 700; color: var(--text); }
+    .status-sub   { font-size: .75rem; color: var(--text2); margin-top: 2px; }
+    .status-badge {
+      margin-left: auto;
+      font-size: .65rem; font-weight: 700; padding: 4px 10px; border-radius: 20px;
+      text-transform: uppercase; letter-spacing: .4px; flex-shrink: 0;
+    }
+    .badge-pendente  { background: rgba(255,171,64,.15); color: var(--amarelo); }
+    .badge-ativada   { background: rgba(0,230,118,.12);  color: var(--verde); }
+    .badge-vazia     { background: var(--surface2); color: var(--text3); }
+
+    /* SECÇÃO */
+    .section-title {
+      font-size: .72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--text3); margin-bottom: 14px;
+    }
+
+    /* UPLOAD AREA */
+    .upload-area {
+      border: 2px dashed var(--border2);
+      border-radius: 14px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      background: var(--surface);
+      transition: all .2s;
+      margin-bottom: 12px;
+    }
+    .upload-area:hover, .upload-area.drag-over {
+      border-color: var(--accent);
+      background: rgba(255,107,157,.05);
+    }
+    .upload-area input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .ua-icon  { font-size: 2rem; margin-bottom: 8px; }
+    .ua-title { font-size: .86rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .ua-sub   { font-size: .72rem; color: var(--text2); }
+
+    .preview-wrap { display: none; border-radius: 12px; overflow: hidden; border: 1px solid var(--border2); margin-bottom: 12px; position: relative; }
+    .preview-wrap.show { display: block; }
+    .preview-wrap img { width: 100%; max-height: 180px; object-fit: cover; display: block; }
+    .preview-remove {
+      position: absolute; top: 8px; right: 8px;
+      width: 26px; height: 26px; background: rgba(0,0,0,.75);
+      border: none; border-radius: 50%; color: #fff; cursor: pointer;
+      font-size: .75rem; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* BTN */
+    .btn-main {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-family: 'Inter', sans-serif; font-size: .9rem; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      gap: 8px; transition: opacity .15s, transform .1s;
+    }
+    .btn-main:hover   { opacity: .88; }
+    .btn-main:active  { transform: scale(.98); }
+    .btn-main:disabled { opacity: .3; cursor: not-allowed; }
+    .btn-pink   { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+    .btn-ghost  { background: var(--surface2); border: 1px solid var(--border2); color: var(--text); }
+
+    .spin {
+      width: 17px; height: 17px;
+      border: 2.5px solid rgba(255,255,255,.25); border-top-color: #fff;
+      border-radius: 50%; animation: spin .65s linear infinite; display: none;
+    }
+    .btn-main.loading .spin    { display: block; }
+    .btn-main.loading .btn-txt { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--surface2); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 13px 22px;
+      font-size: .85rem; font-weight: 600; color: var(--text);
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transition: transform .3s ease; z-index: 200; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: rgba(0,230,118,.3); color: var(--verde); }
+    .toast.error   { border-color: rgba(255,77,109,.3);  color: var(--vermelho); }
+
+    /* INFO BOX */
+    .info-box {
+      background: rgba(255,171,64,.07);
+      border: 1px solid rgba(255,171,64,.18);
+      border-radius: 12px; padding: 14px 16px;
+      font-size: .78rem; color: #ffcc80; line-height: 1.55;
+      margin-bottom: 20px;
+    }
+
+    /* MEDIDAS LIST */
+    .medida-item {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 9px;
+    }
+    .mi-numero { font-size: .72rem; font-family: monospace; color: var(--text3); margin-bottom: 4px; }
+    .mi-nome   { font-size: .88rem; font-weight: 700; color: var(--text); }
+    .mi-detalhe{ font-size: .73rem; color: var(--text2); margin-top: 4px; }
+    .mi-status {
+      display: inline-block; margin-top: 8px;
+      font-size: .63rem; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+    }
+
+    /* EMPTY */
+    .empty { text-align: center; padding: 28px; color: var(--text3); }
+    .empty .ei { font-size: 2rem; margin-bottom: 8px; }
+    .empty p   { font-size: .8rem; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <div class="header-logo">💜</div>
+    <span class="header-name">Safe Woman</span>
+  </div>
+  <button class="btn-sair" onclick="sair()">Sair</button>
+</header>
+
+<div class="content">
+
+  <div class="hero">
+    <div class="hero-icon">🛡️</div>
+    <div class="hero-title">Área de Proteção</div>
+    <div class="hero-sub">
+      Cadastre sua medida protetiva aqui com segurança.<br>
+      Ela será <strong style="color:#ff8fa3">ativada automaticamente</strong> quando você apresentar sua CNH na entrada do evento.
+    </div>
+  </div>
+
+  <div class="info-box">
+    ⚠️ <strong>Como funciona:</strong> Faça o upload da sua medida protetiva agora. Ao chegar no evento, basta apresentar sua CNH normalmente — o sistema reconhecerá você e ativará sua proteção automaticamente, sem exposição.
+  </div>
+
+  <!-- Upload nova medida -->
+  <div class="section-title">Cadastrar medida protetiva</div>
+
+  <div class="upload-area" id="upload-zone"
+       ondragover="onDragOver(event)" ondragleave="onDragLeave()"
+       ondrop="onDrop(event)">
+    <input type="file" accept="image/*" capture="environment" id="foto-mp"
+           onchange="onFileSelect()">
+    <div class="ua-icon">📄</div>
+    <div class="ua-title">Fotografe ou selecione o documento</div>
+    <div class="ua-sub">Medida Protetiva · JPG, PNG, PDF</div>
+  </div>
+
+  <div class="preview-wrap" id="preview-wrap">
+    <img id="preview-img" alt="Prévia" />
+    <button class="preview-remove" onclick="clearFile()">✕</button>
+  </div>
+
+  <button class="btn-main btn-pink" id="btn-enviar" onclick="enviarMedida()" disabled style="margin-bottom:24px">
+    <span class="btn-txt">💜 Cadastrar medida protetiva</span>
+    <span class="spin"></span>
+  </button>
+
+  <!-- Minhas medidas -->
+  <div class="section-title">Minhas medidas cadastradas</div>
+  <div id="lista-medidas">
+    <div class="empty"><div class="ei">📋</div><p>Nenhuma medida cadastrada ainda.</p></div>
+  </div>
+
+</div><!-- /content -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // Auth
+  const token = sessionStorage.getItem('sw_token');
+  const tipo  = sessionStorage.getItem('sw_tipo');
+  if (!token || tipo !== 'vitima') { window.location.replace('/login'); }
+
+  function sair() {
+    sessionStorage.clear();
+    window.location.replace('/login');
+  }
+
+  function authH() { return { 'Authorization': 'Bearer ' + token }; }
+
+  // Toast
+  function showToast(msg, type='') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show ' + type;
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  // Upload
+  function onFileSelect() {
+    const file = document.getElementById('foto-mp').files[0];
+    if (!file) return;
+    const wrap = document.getElementById('preview-wrap');
+    document.getElementById('preview-img').src = URL.createObjectURL(file);
+    wrap.classList.add('show');
+    document.getElementById('btn-enviar').disabled = false;
+    document.getElementById('upload-zone').style.display = 'none';
+  }
+
+  function clearFile() {
+    document.getElementById('foto-mp').value = '';
+    document.getElementById('preview-wrap').classList.remove('show');
+    document.getElementById('btn-enviar').disabled = true;
+    document.getElementById('upload-zone').style.display = '';
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    document.getElementById('upload-zone').classList.add('drag-over');
+  }
+  function onDragLeave() {
+    document.getElementById('upload-zone').classList.remove('drag-over');
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    onDragLeave();
+    const file = e.dataTransfer?.files[0];
+    if (!file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('foto-mp').files = dt.files;
+    onFileSelect();
+  }
+
+  // Envio
+  async function enviarMedida() {
+    const file = document.getElementById('foto-mp').files[0];
+    if (!file) return;
+    const btn = document.getElementById('btn-enviar');
+    btn.classList.add('loading'); btn.disabled = true;
+
+    const form = new FormData();
+    form.append('foto', file);
+
+    try {
+      const res  = await fetch('/api/vitima/pre-cadastro-medida', {
+        method:'POST', headers: authH(), body: form,
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        clearFile();
+        showToast('✅ Medida cadastrada! Será ativada na entrada.', 'success');
+        await carregarMedidas();
+      } else {
+        showToast('❌ ' + (data.mensagem || data.detail || 'Erro ao cadastrar'), 'error');
+      }
+    } catch {
+      showToast('❌ Erro de conexão. Tente novamente.', 'error');
+    } finally {
+      btn.classList.remove('loading'); btn.disabled = false;
+    }
+  }
+
+  // Listar medidas
+  async function carregarMedidas() {
+    try {
+      const res  = await fetch('/api/vitima/status', { headers: authH() });
+      const data = await res.json();
+      const lista = data.medidas || [];
+      const el = document.getElementById('lista-medidas');
+
+      if (!lista.length) {
+        el.innerHTML = `<div class="empty"><div class="ei">📋</div><p>Nenhuma medida cadastrada ainda.</p></div>`;
+        return;
+      }
+
+      el.innerHTML = lista.map(m => {
+        const ativada = m.ativada;
+        const badgeCls  = ativada ? 'badge-ativada' : 'badge-pendente';
+        const badgeTxt  = ativada ? '✅ Ativa' : '⏳ Pendente — aguardando CNH na entrada';
+        return `<div class="medida-item">
+          <div class="mi-numero">${m.numero_processo || '—'}</div>
+          <div class="mi-nome">${m.nome_vitima || '—'}</div>
+          <div class="mi-detalhe">Agressor: ${m.nome_agressor || '—'}</div>
+          <span class="mi-status ${badgeCls}">${badgeTxt}</span>
+        </div>`;
+      }).join('');
+    } catch(e) { console.error('medidas:', e); }
+  }
+
+  // Init
+  carregarMedidas();
+</script>
+</body>
+</html>
