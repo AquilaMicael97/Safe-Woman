@@ -13,9 +13,8 @@ chave2.json
 .env
 .env.local
 
-# Build do frontend (gerado pelo Railway no deploy)
+# Build local antigo (raiz)
 dist/
-frontend/dist/
 frontend/.vite/
 
 # Dependências Node
