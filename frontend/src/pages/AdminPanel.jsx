@@ -4,6 +4,7 @@ import { getSessao, encerrarSessao } from '../utils/auth'
 import Sidebar from '../components/Sidebar'
 import AlertaWatcher from '../components/AlertaWatcher'
 import Dashboard from '../components/tabs/Dashboard'
+import Portaria from '../components/tabs/Portaria'
 import Presentes from '../components/tabs/Presentes'
 import Medidas from '../components/tabs/Medidas'
 import Historico from '../components/tabs/Historico'
@@ -35,6 +36,7 @@ export default function AdminPanel() {
       <AlertaWatcher token={token} />
       <main className="flex-1 overflow-y-auto scrollbar-hide">
         {aba === 'dashboard' && <Dashboard token={token} />}
+        {aba === 'portaria'  && <Portaria operador={sessao?.nome} />}
         {aba === 'presentes' && <Presentes />}
         {aba === 'medidas'   && <Medidas token={token} />}
         {aba === 'historico' && <Historico token={token} />}

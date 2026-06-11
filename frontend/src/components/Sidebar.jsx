@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion'
-import { LayoutDashboard, History, Shield, LogOut, MapPin, FileText, Users, ScrollText } from 'lucide-react'
+import { LayoutDashboard, History, Shield, LogOut, MapPin, FileText, Users, ScrollText, DoorOpen } from 'lucide-react'
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard',  icon: LayoutDashboard },
+  { id: 'portaria',  label: 'Portaria',   icon: DoorOpen },
   { id: 'presentes', label: 'Presentes',  icon: MapPin },
   { id: 'medidas',   label: 'Medidas',    icon: FileText },
   { id: 'historico', label: 'Histórico',  icon: History },
