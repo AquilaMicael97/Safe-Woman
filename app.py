@@ -612,7 +612,7 @@ def resetar_banco() -> dict:
     conn = conectar()
     cur  = conn.cursor()
     cur.execute("""
-        TRUNCATE presencas, medidas_protetivas, vitimas, agressores
+        TRUNCATE presencas, medidas_protetivas, vitimas, agressores, pre_cadastros_medida
         RESTART IDENTITY CASCADE
     """)
     conn.commit()

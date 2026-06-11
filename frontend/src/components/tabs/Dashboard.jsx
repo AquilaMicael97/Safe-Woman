@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ShieldCheck, AlertTriangle, Activity, Clock } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, Activity, Clock, Trash2 } from 'lucide-react'
 import { getHistorico } from '../../utils/history'
 import { getSessao } from '../../utils/auth'
+import { API_BASE } from '../../utils/api'
 
 function StatCard({ label, value, icon: Icon, cor, delay }) {
   return (
@@ -24,6 +25,58 @@ function StatCard({ label, value, icon: Icon, cor, delay }) {
 export default function Dashboard() {
   const sessao = getSessao()
   const historico = getHistorico()
+
+  const [resetAberto, setResetAberto] = useState(false)
+  const [resetUsuario, setResetUsuario] = useState('admin')
+  const [resetSenha,   setResetSenha]   = useState('')
+  const [resetando,  setResetando]  = useState(false)
+  const [resetOk,    setResetOk]    = useState(null)
+  const [resetErro,  setResetErro]  = useState(null)
+
+  async function resetarBanco() {
+    if (!resetSenha) return
+    setResetando(true)
+    setResetErro(null)
+    setResetOk(null)
+
+    try {
+      // Login real no backend para obter o token de admin
+      const login = await fetch(`${API_BASE}/api/admin/login`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ usuario: resetUsuario, senha: resetSenha }),
+      })
+      const dataLogin = await login.json()
+
+      if (!login.ok) {
+        setResetErro(dataLogin.detail || 'Usuário ou senha do sistema incorretos.')
+        return
+      }
+
+      const res = await fetch(`${API_BASE}/api/admin/resetar-banco`, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${dataLogin.token}`,
+        },
+        body: JSON.stringify({ confirmar: true, senha: resetSenha }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setResetErro(data.detail || data.mensagem || 'Erro ao resetar o banco.')
+        return
+      }
+
+      setResetOk('Banco resetado: medidas, vítimas, agressores, presenças e pré-cadastros apagados.')
+      setResetAberto(false)
+      setResetSenha('')
+    } catch {
+      setResetErro('Erro de conexão com o servidor.')
+    } finally {
+      setResetando(false)
+    }
+  }
 
   const stats = useMemo(() => ({
     total:     historico.length,
@@ -117,6 +170,74 @@ export default function Dashboard() {
               </motion.div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Zona de perigo — reset completo do banco */}
+      <div className="mt-10 border border-danger/20 rounded-2xl p-5">
+        <h3 className="text-[11px] font-bold uppercase tracking-widest text-danger/70 mb-2">
+          Zona de perigo
+        </h3>
+        <p className="text-xs text-white/35 mb-4 leading-relaxed">
+          Apaga <strong className="text-white/55">todas</strong> as medidas protetivas, vítimas,
+          agressores, presenças e pré-cadastros. Ação irreversível — use apenas em testes
+          ou ao encerrar o evento.
+        </p>
+
+        {!resetAberto ? (
+          <button
+            onClick={() => { setResetAberto(true); setResetOk(null); setResetErro(null) }}
+            className="flex items-center gap-2 text-xs font-bold text-danger border border-danger/35 hover:bg-danger/12 px-4 py-2.5 rounded-xl transition-all"
+          >
+            <Trash2 size={13} />
+            Resetar banco de dados
+          </button>
+        ) : (
+          <div className="space-y-3 max-w-sm">
+            <input
+              type="text"
+              value={resetUsuario}
+              onChange={e => setResetUsuario(e.target.value)}
+              placeholder="Usuário do sistema"
+              className="w-full bg-bg border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-danger/50 transition-colors"
+            />
+            <input
+              type="password"
+              value={resetSenha}
+              onChange={e => setResetSenha(e.target.value)}
+              placeholder="Senha do sistema"
+              className="w-full bg-bg border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-danger/50 transition-colors"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={resetarBanco}
+                disabled={!resetSenha || resetando}
+                className="flex-1 flex items-center justify-center gap-2 bg-danger/15 border border-danger/40 hover:bg-danger/25 disabled:opacity-40 text-danger text-xs font-bold py-2.5 rounded-xl transition-all"
+              >
+                {resetando ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-danger/30 border-t-danger rounded-full animate-spin" />
+                    Resetando...
+                  </>
+                ) : (
+                  'Confirmar reset'
+                )}
+              </button>
+              <button
+                onClick={() => { setResetAberto(false); setResetSenha(''); setResetErro(null) }}
+                className="flex-1 text-xs font-semibold text-white/45 hover:text-white border border-white/10 hover:border-white/20 py-2.5 rounded-xl transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {resetErro && (
+          <p className="mt-3 text-xs text-danger">{resetErro}</p>
+        )}
+        {resetOk && (
+          <p className="mt-3 text-xs text-safe font-semibold">{resetOk}</p>
         )}
       </div>
     </div>
