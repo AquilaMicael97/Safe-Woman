@@ -1,9 +1,13 @@
 import { motion } from 'framer-motion'
-import { LayoutDashboard, History, Shield, LogOut } from 'lucide-react'
+import { LayoutDashboard, History, Shield, LogOut, MapPin, FileText, Users, ScrollText } from 'lucide-react'
 
 const TABS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'Dashboard',  icon: LayoutDashboard },
+  { id: 'presentes', label: 'Presentes',  icon: MapPin },
+  { id: 'medidas',   label: 'Medidas',    icon: FileText },
   { id: 'historico', label: 'Histórico',  icon: History },
+  { id: 'usuarios',  label: 'Usuários',   icon: Users },
+  { id: 'auditoria', label: 'Auditoria',  icon: ScrollText },
 ]
 
 export default function Sidebar({ aba, setAba, nome, onLogout }) {

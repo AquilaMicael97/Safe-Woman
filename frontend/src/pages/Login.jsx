@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, Eye, EyeOff } from 'lucide-react'
-import { validarLogin, salvarSessao, getSessao, salvarSessaoVitima, getSessaoVitima } from '../utils/auth'
+import { loginSistema, salvarSessao, getSessao, salvarSessaoVitima, getSessaoVitima } from '../utils/auth'
 import { API_BASE } from '../utils/api'
 import logo from '../assets/logo.png'
 
@@ -44,20 +44,18 @@ export default function Login() {
   }, [])
 
   // ── Portaria ──
-  function handlePortaria(e) {
+  async function handlePortaria(e) {
     e.preventDefault()
     setErroPortaria('')
     setLoadingPortaria(true)
-    setTimeout(() => {
-      const dados = validarLogin(usuario, senha)
-      if (!dados) {
-        setErroPortaria('Usuário ou senha incorretos.')
-        setLoadingPortaria(false)
-        return
-      }
+    try {
+      const dados = await loginSistema(usuario, senha)
       salvarSessao(dados)
       navigate(dados.role === 'admin' ? '/admin' : '/portaria', { replace: true })
-    }, 500)
+    } catch (err) {
+      setErroPortaria(err.message || 'Erro de conexão. Tente novamente.')
+      setLoadingPortaria(false)
+    }
   }
 
   // ── Vítima login ──

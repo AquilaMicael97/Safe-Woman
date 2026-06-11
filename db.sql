@@ -56,3 +56,30 @@ CREATE TABLE IF NOT EXISTS presencas (
 -- Garante no máximo UMA presença ativa por CPF por vez
 CREATE UNIQUE INDEX IF NOT EXISTS idx_presenca_ativa
     ON presencas(cpf) WHERE saida_em IS NULL;
+
+CREATE TABLE IF NOT EXISTS usuarios_sistema (
+    id         SERIAL PRIMARY KEY,
+    usuario    VARCHAR(60)  UNIQUE NOT NULL,
+    nome       VARCHAR(255) NOT NULL,
+    senha_hash VARCHAR(64)  NOT NULL,
+    role       VARCHAR(10)  CHECK (role IN ('admin','recepcao')) DEFAULT 'recepcao',
+    ativo      BOOLEAN      DEFAULT TRUE,
+    criado_em  TIMESTAMPTZ  DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS auditoria (
+    id        SERIAL PRIMARY KEY,
+    usuario   VARCHAR(60),
+    acao      VARCHAR(60) NOT NULL,
+    detalhe   TEXT,
+    criado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS alertas (
+    id        SERIAL PRIMARY KEY,
+    nivel     VARCHAR(20) NOT NULL,
+    cpf       VARCHAR(14),
+    nome      VARCHAR(255),
+    mensagem  TEXT NOT NULL,
+    criado_em TIMESTAMPTZ DEFAULT NOW()
+);

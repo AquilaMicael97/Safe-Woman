@@ -29,7 +29,7 @@ import app as ocr  # app.py já configura as credenciais Google
 from fastapi import FastAPI, File, Form, UploadFile, Query, Depends, HTTPException, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 # ─────────────────────────────────────────────
@@ -44,8 +44,43 @@ RETENCAO_DIAS  = int(os.environ.get("RETENCAO_DIAS", "90"))
 
 _sessoes_admin:    dict = {}
 _sessoes_portaria: dict = {}
+_sessoes_info:     dict = {}  # token -> {"usuario", "nome", "role"} para auditoria
 
 _bearer = HTTPBearer(auto_error=False)
+
+
+def _usuario_do_token(token: str) -> str:
+    return _sessoes_info.get(token, {}).get("usuario", "desconhecido")
+
+
+def _auditar(usuario: str, acao: str, detalhe: str = ""):
+    """Grava ação sensível na trilha de auditoria. Nunca derruba a requisição."""
+    try:
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute(
+            "INSERT INTO auditoria (usuario, acao, detalhe) VALUES (%s, %s, %s)",
+            (usuario, acao, detalhe),
+        )
+        conn.commit()
+        cur.close(); conn.close()
+    except Exception as e:
+        print(f"[auditoria] Falha ao registrar '{acao}': {e}")
+
+
+def _registrar_alerta(nivel: str, cpf: str, nome: str, mensagem: str):
+    """Persiste um alerta de conflito para o painel admin (polling em tempo real)."""
+    try:
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute(
+            "INSERT INTO alertas (nivel, cpf, nome, mensagem) VALUES (%s, %s, %s, %s)",
+            (nivel, cpf, nome, mensagem),
+        )
+        conn.commit()
+        cur.close(); conn.close()
+    except Exception as e:
+        print(f"[alertas] Falha ao registrar alerta: {e}")
 
 
 def _requer_admin(credenciais: HTTPAuthorizationCredentials = Depends(_bearer)) -> str:
@@ -183,6 +218,75 @@ async def portaria_login(request: Request):
 @server.post("/api/portaria/logout")
 async def portaria_logout(token: str = Depends(_requer_portaria)):
     _sessoes_portaria.pop(token, None)
+    _sessoes_info.pop(token, None)
+    return {"status": "ok"}
+
+
+# ─────────────────────────────────────────────
+#  AUTH — SISTEMA (login unificado admin/recepção)
+# ─────────────────────────────────────────────
+
+def _criar_sessao(usuario: str, nome: str, role: str) -> str:
+    token = secrets.token_hex(32)
+    if role == "admin":
+        _sessoes_admin[token] = time.time() + 8 * 3600
+    else:
+        _sessoes_portaria[token] = time.time() + 12 * 3600
+    _sessoes_info[token] = {"usuario": usuario, "nome": nome, "role": role}
+    return token
+
+
+@server.post("/api/auth/login")
+async def auth_login(request: Request):
+    """
+    Login unificado: valida contra a tabela usuarios_sistema e, como fallback,
+    contra as credenciais de ambiente (ADMIN_USER/PORTARIA_USER).
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido")
+
+    usuario = (body.get("usuario") or "").strip().lower()
+    senha   = body.get("senha", "")
+
+    if not usuario or not senha:
+        raise HTTPException(status_code=422, detail="Usuário e senha obrigatórios")
+
+    # 1) Usuários cadastrados pelo admin
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute(
+        "SELECT nome, role FROM usuarios_sistema WHERE usuario=%s AND senha_hash=%s AND ativo=TRUE",
+        (usuario, _hash_senha(senha)),
+    )
+    row = cur.fetchone()
+    cur.close(); conn.close()
+
+    if row:
+        token = _criar_sessao(usuario, row[0], row[1])
+        _auditar(usuario, "login", f"Login no sistema (perfil: {row[1]})")
+        return {"status": "ok", "token": token, "nome": row[0], "role": row[1]}
+
+    # 2) Fallback — credenciais de ambiente
+    if secrets.compare_digest(usuario, ADMIN_USER) and secrets.compare_digest(senha, ADMIN_PASS):
+        token = _criar_sessao(usuario, "Administrador", "admin")
+        _auditar(usuario, "login", "Login no sistema (perfil: admin, credencial de ambiente)")
+        return {"status": "ok", "token": token, "nome": "Administrador", "role": "admin"}
+
+    if secrets.compare_digest(usuario, PORTARIA_USER) and secrets.compare_digest(senha, PORTARIA_PASS):
+        token = _criar_sessao(usuario, "Portaria", "recepcao")
+        _auditar(usuario, "login", "Login no sistema (perfil: recepcao, credencial de ambiente)")
+        return {"status": "ok", "token": token, "nome": "Portaria", "role": "recepcao"}
+
+    raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+
+
+@server.post("/api/auth/logout")
+async def auth_logout(token: str = Depends(_requer_portaria)):
+    _sessoes_portaria.pop(token, None)
+    _sessoes_admin.pop(token, None)
+    _sessoes_info.pop(token, None)
     return {"status": "ok"}
 
 
@@ -372,6 +476,13 @@ def _montar_resposta_verificacao(cpf, nome, data_nascimento, resultado):
     if cpf and not entrada_pendente:
         ocr.registrar_entrada(cpf, nome or "Desconhecido", tipo_presenca)
 
+    # Alerta persistido para o painel admin (vermelho sempre; amarelo só se urgente)
+    if nivel.startswith("vermelho"):
+        _registrar_alerta(nivel, cpf, nome or "Desconhecido", resultado["mensagem"])
+    elif urgente:
+        _registrar_alerta(nivel, cpf, nome or "Desconhecido",
+                          f"Vítima {nome or cpf} na entrada com agressor dentro do local — entrada em espera.")
+
     return {
         "status"            : "ok",
         "nivel"             : nivel,
@@ -509,6 +620,9 @@ async def cadastrar_medida(foto: UploadFile = File(...)):
             alerta = True
             mensagem_alerta = f"ATENÇÃO: {dados['nome_vitima']} (vítima protegida) está presente no local."
 
+        if alerta:
+            _registrar_alerta(nivel, cpf_agressor, dados["nome_agressor"], mensagem_alerta)
+
         return {
             "status"           : "ok",
             "ja_existia"       : row is None,
@@ -631,7 +745,7 @@ async def verificar_cpf_manual(cpf: str = Query(...)):
 # ─────────────────────────────────────────────
 
 @server.post("/api/entrada-negada")
-async def entrada_negada(cpf: str = Query(...)):
+async def entrada_negada(cpf: str = Query(...), operador: str = Query(default="portaria")):
     """
     Desfaz o registro automático de entrada quando a portaria nega o acesso
     após um alerta. Remove a presença ativa do CPF para que a pessoa não
@@ -647,6 +761,7 @@ async def entrada_negada(cpf: str = Query(...)):
                 "mensagem": f"CPF {cpf_fmt} não possui presença ativa para cancelar."
             })
 
+        _auditar(operador, "entrada_negada", f"Entrada negada para {removido['nome']} (CPF {cpf_fmt})")
         return {
             "status"  : "ok",
             "cpf"     : cpf_fmt,
@@ -665,7 +780,7 @@ async def entrada_negada(cpf: str = Query(...)):
 # ─────────────────────────────────────────────
 
 @server.post("/api/liberar-entrada")
-async def liberar_entrada(cpf: str = Query(...), nome: str = Query(default="")):
+async def liberar_entrada(cpf: str = Query(...), nome: str = Query(default=""), operador: str = Query(default="portaria")):
     """
     Libera a entrada da vítima que ficou em espera porque o agressor estava
     no local. Reconfere NO SERVIDOR se algum agressor com medida ativa contra
@@ -685,6 +800,7 @@ async def liberar_entrada(cpf: str = Query(...), nome: str = Query(default="")):
             })
 
         ocr.registrar_entrada(cpf_fmt, nome or "Desconhecido", "vitima")
+        _auditar(operador, "liberar_entrada", f"Entrada de vítima liberada: {nome or cpf_fmt} (CPF {cpf_fmt})")
         return {
             "status"  : "ok",
             "cpf"     : cpf_fmt,
@@ -811,8 +927,7 @@ async def admin_login(request: Request):
     if not (usuario_ok and senha_ok):
         raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
 
-    token = secrets.token_hex(32)
-    _sessoes_admin[token] = time.time() + 8 * 3600  # expira em 8 horas
+    token = _criar_sessao(usuario, "Administrador", "admin")
     return {"status": "ok", "token": token}
 
 
@@ -1025,6 +1140,226 @@ async def admin_vitimas(token: str = Depends(_requer_admin)):
         return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
 
 
+# ─────────────────────────────────────────────
+#  PAINEL ADMIN — gestão de usuários do sistema
+# ─────────────────────────────────────────────
+
+@server.get("/api/admin/usuarios")
+async def admin_listar_usuarios(token: str = Depends(_requer_admin)):
+    """Lista os operadores e administradores cadastrados."""
+    try:
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute("""
+            SELECT id, usuario, nome, role, ativo, criado_em
+            FROM   usuarios_sistema
+            ORDER  BY criado_em DESC
+        """)
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+        return {"status": "ok", "usuarios": [
+            {"id": r[0], "usuario": r[1], "nome": r[2], "role": r[3],
+             "ativo": r[4], "criado_em": str(r[5]) if r[5] else None}
+            for r in rows
+        ]}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
+
+
+@server.post("/api/admin/usuarios")
+async def admin_criar_usuario(request: Request, token: str = Depends(_requer_admin)):
+    """Cria um novo usuário do sistema (admin ou recepção)."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido")
+
+    usuario = (body.get("usuario") or "").strip().lower()
+    nome    = (body.get("nome") or "").strip()
+    senha   = body.get("senha", "")
+    role    = body.get("role", "recepcao")
+
+    if not usuario or not nome or len(senha) < 6:
+        raise HTTPException(status_code=422, detail="Usuário, nome e senha (mín. 6 caracteres) obrigatórios")
+    if role not in ("admin", "recepcao"):
+        raise HTTPException(status_code=422, detail="Perfil inválido: use 'admin' ou 'recepcao'")
+
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO usuarios_sistema (usuario, nome, senha_hash, role)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (usuario) DO NOTHING
+            RETURNING id
+        """, (usuario, nome, _hash_senha(senha), role))
+        row = cur.fetchone()
+        conn.commit()
+    finally:
+        cur.close(); conn.close()
+
+    if not row:
+        raise HTTPException(status_code=409, detail="Usuário já existe")
+
+    _auditar(_usuario_do_token(token), "criar_usuario", f"Usuário '{usuario}' ({nome}) criado com perfil {role}")
+    return {"status": "ok", "id": row[0], "mensagem": f"Usuário '{usuario}' criado."}
+
+
+@server.patch("/api/admin/usuarios/{usuario_id}")
+async def admin_editar_usuario(usuario_id: int, request: Request, token: str = Depends(_requer_admin)):
+    """Edita um usuário: ativar/desativar, trocar perfil ou redefinir senha."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Corpo inválido")
+
+    campos, valores, mudancas = [], [], []
+
+    if "ativo" in body:
+        campos.append("ativo=%s"); valores.append(bool(body["ativo"]))
+        mudancas.append("ativado" if body["ativo"] else "desativado")
+    if body.get("senha"):
+        if len(body["senha"]) < 6:
+            raise HTTPException(status_code=422, detail="Senha deve ter no mínimo 6 caracteres")
+        campos.append("senha_hash=%s"); valores.append(_hash_senha(body["senha"]))
+        mudancas.append("senha redefinida")
+    if body.get("role") in ("admin", "recepcao"):
+        campos.append("role=%s"); valores.append(body["role"])
+        mudancas.append(f"perfil alterado para {body['role']}")
+
+    if not campos:
+        raise HTTPException(status_code=422, detail="Nada para atualizar")
+
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute(
+        f"UPDATE usuarios_sistema SET {', '.join(campos)} WHERE id=%s RETURNING usuario",
+        (*valores, usuario_id),
+    )
+    row = cur.fetchone()
+    conn.commit()
+    cur.close(); conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    _auditar(_usuario_do_token(token), "editar_usuario", f"Usuário '{row[0]}': {', '.join(mudancas)}")
+    return {"status": "ok", "mensagem": f"Usuário '{row[0]}' atualizado."}
+
+
+@server.delete("/api/admin/usuarios/{usuario_id}")
+async def admin_excluir_usuario(usuario_id: int, token: str = Depends(_requer_admin)):
+    """Exclui um usuário do sistema."""
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute("DELETE FROM usuarios_sistema WHERE id=%s RETURNING usuario", (usuario_id,))
+    row = cur.fetchone()
+    conn.commit()
+    cur.close(); conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    _auditar(_usuario_do_token(token), "excluir_usuario", f"Usuário '{row[0]}' excluído")
+    return {"status": "ok", "mensagem": f"Usuário '{row[0]}' excluído."}
+
+
+# ─────────────────────────────────────────────
+#  PAINEL ADMIN — auditoria, alertas e exportação
+# ─────────────────────────────────────────────
+
+@server.get("/api/admin/auditoria")
+async def admin_auditoria(
+    limite: int = Query(default=200, ge=1, le=1000),
+    token: str = Depends(_requer_admin),
+):
+    """Trilha de auditoria das ações sensíveis (mais recentes primeiro)."""
+    try:
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute("""
+            SELECT id, usuario, acao, detalhe, criado_em
+            FROM   auditoria
+            ORDER  BY id DESC
+            LIMIT  %s
+        """, (limite,))
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+        return {"status": "ok", "eventos": [
+            {"id": r[0], "usuario": r[1], "acao": r[2], "detalhe": r[3],
+             "criado_em": str(r[4]) if r[4] else None}
+            for r in rows
+        ]}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
+
+
+@server.get("/api/admin/alertas")
+async def admin_alertas(
+    apos_id: int = Query(default=0, ge=0),
+    token: str = Depends(_requer_admin),
+):
+    """
+    Alertas de conflito vítima×agressor. Com `apos_id`, retorna apenas os mais
+    novos — usado pelo painel admin em polling para notificação em tempo real.
+    """
+    try:
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute("""
+            SELECT id, nivel, cpf, nome, mensagem, criado_em
+            FROM   alertas
+            WHERE  id > %s
+            ORDER  BY id DESC
+            LIMIT  50
+        """, (apos_id,))
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+        return {"status": "ok", "alertas": [
+            {"id": r[0], "nivel": r[1], "cpf": r[2], "nome": r[3],
+             "mensagem": r[4], "criado_em": str(r[5]) if r[5] else None}
+            for r in rows
+        ]}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
+
+
+@server.get("/api/admin/historico/export")
+async def admin_historico_export(
+    data: str = Query(default=None, description="Data no formato YYYY-MM-DD"),
+    token: str = Depends(_requer_admin),
+):
+    """Exporta o histórico de um dia em CSV (padrão: hoje)."""
+    try:
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute("""
+            SELECT cpf, nome, tipo, entrada_em, saida_em
+            FROM   presencas
+            WHERE  entrada_em::date = COALESCE(%s::date, CURRENT_DATE)
+            ORDER  BY entrada_em DESC
+        """, (data,))
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+
+        import csv, io
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, delimiter=";")
+        writer.writerow(["CPF", "Nome", "Tipo", "Entrada", "Saída"])
+        for r in rows:
+            writer.writerow([r[0], r[1] or "", r[2], str(r[3]) if r[3] else "", str(r[4]) if r[4] else ""])
+
+        _auditar(_usuario_do_token(token), "exportar_historico", f"Exportação CSV ({data or 'hoje'}, {len(rows)} registros)")
+        nome_arquivo = f"historico_{data or 'hoje'}.csv"
+        return Response(
+            content="\ufeff" + buffer.getvalue(),  # BOM para o Excel abrir com acentos
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+        )
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})
+
+
 @server.post("/api/admin/resetar-banco")
 async def resetar_banco_manual(
     request: Request,
@@ -1039,11 +1374,24 @@ async def resetar_banco_manual(
     if not body.get("confirmar"):
         raise HTTPException(status_code=400, detail='Envie {"confirmar": true, "senha": "..."} para confirmar')
 
-    senha = body.get("senha", "")
-    if not secrets.compare_digest(senha, ADMIN_PASS):
+    senha   = body.get("senha", "")
+    usuario = _usuario_do_token(token)
+
+    # Reconfirma a senha do PRÓPRIO admin logado (ou da credencial de ambiente)
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute(
+        "SELECT 1 FROM usuarios_sistema WHERE usuario=%s AND senha_hash=%s AND role='admin' AND ativo=TRUE",
+        (usuario, _hash_senha(senha)),
+    )
+    senha_ok = cur.fetchone() is not None
+    cur.close(); conn.close()
+
+    if not senha_ok and not secrets.compare_digest(senha, ADMIN_PASS):
         raise HTTPException(status_code=401, detail="Senha incorreta")
 
     ocr.resetar_banco()
+    _auditar(usuario, "resetar_banco", "Reset completo do banco (medidas, vítimas, agressores, presenças, pré-cadastros e alertas)")
     return {"status": "ok", "mensagem": "Banco de dados resetado com sucesso."}
 
 
@@ -1055,6 +1403,7 @@ async def purgar_presencas_antigas(
     """Remove registros de presença com mais de `dias` dias (padrão: RETENCAO_DIAS)."""
     try:
         removidos = ocr.purgar_presencas_antigas(dias)
+        _auditar(_usuario_do_token(token), "purgar_presencas", f"{removidos} registro(s) com mais de {dias} dias removido(s)")
         return {"status": "ok", "removidos": removidos, "dias": dias}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "erro", "mensagem": str(e)})

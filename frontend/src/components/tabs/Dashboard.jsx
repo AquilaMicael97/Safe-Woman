@@ -1,9 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { ShieldCheck, AlertTriangle, Activity, Clock, Trash2 } from 'lucide-react'
-import { getHistorico } from '../../utils/history'
+import { ShieldCheck, AlertTriangle, Activity, Clock, Trash2, Users, FileText, LogIn, LogOut } from 'lucide-react'
 import { getSessao } from '../../utils/auth'
-import { API_BASE } from '../../utils/api'
+import { API_BASE, apiGet } from '../../utils/api'
 
 function StatCard({ label, value, icon: Icon, cor, delay }) {
   return (
@@ -22,16 +21,73 @@ function StatCard({ label, value, icon: Icon, cor, delay }) {
   )
 }
 
-export default function Dashboard() {
+// Gráfico de barras simples (sem dependência extra) — entradas por hora do dia
+function GraficoEntradas({ dados }) {
+  const max = Math.max(...dados.map(d => d.total), 1)
+  const horas = Array.from({ length: 24 }, (_, h) => ({
+    hora: h,
+    total: dados.find(d => d.hora === h)?.total || 0,
+  }))
+
+  return (
+    <div className="bg-surface border border-white/8 rounded-2xl p-5">
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-white/25 mb-4">
+        Entradas por hora · hoje
+      </h3>
+      <div className="flex items-end gap-1 h-28">
+        {horas.map(({ hora, total }) => (
+          <div key={hora} className="flex-1 flex flex-col items-center gap-1 group">
+            <span className="text-[9px] text-white/0 group-hover:text-white/60 transition-colors">
+              {total || ''}
+            </span>
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: `${(total / max) * 80}px` }}
+              transition={{ duration: 0.4, delay: hora * 0.015 }}
+              className={`w-full rounded-t ${total > 0 ? 'bg-accent/70 group-hover:bg-accent' : 'bg-white/5'}`}
+              style={{ minHeight: total > 0 ? 4 : 2 }}
+            />
+            <span className="text-[8px] text-white/20">{hora % 6 === 0 ? `${hora}h` : ''}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export default function Dashboard({ token }) {
   const sessao = getSessao()
-  const historico = getHistorico()
+
+  const [stats, setStats] = useState(null)
+  const [recentes, setRecentes] = useState([])
+  const [erro, setErro] = useState(null)
 
   const [resetAberto, setResetAberto] = useState(false)
-  const [resetUsuario, setResetUsuario] = useState('admin')
-  const [resetSenha,   setResetSenha]   = useState('')
-  const [resetando,  setResetando]  = useState(false)
-  const [resetOk,    setResetOk]    = useState(null)
-  const [resetErro,  setResetErro]  = useState(null)
+  const [resetSenha,  setResetSenha]  = useState('')
+  const [resetando,   setResetando]   = useState(false)
+  const [resetOk,     setResetOk]     = useState(null)
+  const [resetErro,   setResetErro]   = useState(null)
+
+  async function carregar() {
+    try {
+      const [s, h] = await Promise.all([
+        apiGet('/api/admin/stats', token),
+        apiGet('/api/admin/historico', token),
+      ])
+      setStats(s)
+      setRecentes(h.historico.slice(0, 6))
+      setErro(null)
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
+  // Atualização automática a cada 30s
+  useEffect(() => {
+    carregar()
+    const id = setInterval(carregar, 30_000)
+    return () => clearInterval(id)
+  }, [token])
 
   async function resetarBanco() {
     if (!resetSenha) return
@@ -40,24 +96,11 @@ export default function Dashboard() {
     setResetOk(null)
 
     try {
-      // Login real no backend para obter o token de admin
-      const login = await fetch(`${API_BASE}/api/admin/login`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ usuario: resetUsuario, senha: resetSenha }),
-      })
-      const dataLogin = await login.json()
-
-      if (!login.ok) {
-        setResetErro(dataLogin.detail || 'Usuário ou senha do sistema incorretos.')
-        return
-      }
-
       const res = await fetch(`${API_BASE}/api/admin/resetar-banco`, {
         method:  'POST',
         headers: {
           'Content-Type':  'application/json',
-          'Authorization': `Bearer ${dataLogin.token}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ confirmar: true, senha: resetSenha }),
       })
@@ -68,23 +111,16 @@ export default function Dashboard() {
         return
       }
 
-      setResetOk('Banco resetado: medidas, vítimas, agressores, presenças e pré-cadastros apagados.')
+      setResetOk('Banco resetado: medidas, vítimas, agressores, presenças, pré-cadastros e alertas apagados.')
       setResetAberto(false)
       setResetSenha('')
+      await carregar()
     } catch {
       setResetErro('Erro de conexão com o servidor.')
     } finally {
       setResetando(false)
     }
   }
-
-  const stats = useMemo(() => ({
-    total:     historico.length,
-    alertas:   historico.filter(h => h.veredito === 'Alerta').length,
-    liberados: historico.filter(h => h.veredito === 'Liberado').length,
-  }), [historico.length])
-
-  const recentes = historico.slice(0, 6)
 
   return (
     <div className="p-7 max-w-3xl">
@@ -100,70 +136,103 @@ export default function Dashboard() {
         <p className="text-sm text-white/35 mt-1">Painel administrativo · Safe Woman</p>
       </motion.div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      {erro && (
+        <div className="flex items-center gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-xl px-4 py-2.5 mb-6">
+          <AlertTriangle size={13} className="flex-shrink-0" />
+          {erro}
+        </div>
+      )}
+
+      {/* Stats — dados reais do backend */}
+      <div className="grid grid-cols-3 gap-4 mb-4">
         <StatCard
-          label="Total Analisados"
-          value={stats.total}
-          icon={Activity}
+          label="Presentes agora"
+          value={stats?.total_presentes ?? '—'}
+          icon={Users}
           cor={{ bg: 'bg-accent/15', text: 'text-accent' }}
           delay={0.05}
         />
         <StatCard
-          label="Alertas Gerados"
-          value={stats.alertas}
+          label="Agressores no local"
+          value={stats?.agressores_presentes ?? '—'}
           icon={AlertTriangle}
           cor={{ bg: 'bg-danger/12', text: 'text-danger' }}
           delay={0.1}
         />
         <StatCard
-          label="Liberados"
-          value={stats.liberados}
+          label="Vítimas no local"
+          value={stats?.vitimas_presentes ?? '—'}
           icon={ShieldCheck}
-          cor={{ bg: 'bg-safe/12', text: 'text-safe' }}
+          cor={{ bg: 'bg-vitima/12', text: 'text-vitima' }}
           delay={0.15}
         />
       </div>
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <StatCard
+          label="Medidas protetivas"
+          value={stats?.total_medidas ?? '—'}
+          icon={FileText}
+          cor={{ bg: 'bg-safe/12', text: 'text-safe' }}
+          delay={0.2}
+        />
+        <StatCard
+          label="Entradas hoje"
+          value={stats?.entradas_hoje ?? '—'}
+          icon={LogIn}
+          cor={{ bg: 'bg-accent/15', text: 'text-accent' }}
+          delay={0.25}
+        />
+        <StatCard
+          label="Saídas hoje"
+          value={stats?.saidas_hoje ?? '—'}
+          icon={LogOut}
+          cor={{ bg: 'bg-white/8', text: 'text-white/60' }}
+          delay={0.3}
+        />
+      </div>
 
-      {/* Atividade recente */}
+      {/* Gráfico de entradas por hora */}
+      <div className="mb-8">
+        <GraficoEntradas dados={stats?.entradas_por_hora || []} />
+      </div>
+
+      {/* Atividade recente — direto do banco */}
       <div>
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-white/25 mb-3">
-          Atividade recente
+          Atividade recente · hoje
         </h3>
 
         {recentes.length === 0 ? (
           <div className="text-center py-12 text-white/20 text-sm">
-            Nenhum registro ainda.
+            Nenhum registro hoje.
           </div>
         ) : (
           <div className="space-y-2">
             {recentes.map((reg, i) => (
               <motion.div
-                key={reg.id}
+                key={`${reg.cpf}-${reg.entrada_em}`}
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className="flex items-center gap-4 bg-surface border border-white/8 rounded-xl px-4 py-3"
               >
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  reg.veredito === 'Alerta' ? 'bg-danger' : 'bg-safe'
+                  reg.tipo === 'agressor' ? 'bg-danger' : reg.tipo === 'vitima' ? 'bg-vitima' : 'bg-safe'
                 }`} />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-white truncate">
                     {reg.nome || 'Desconhecido'}
                   </div>
-                  <div className="text-xs text-white/30 mt-0.5">{reg.operador}</div>
+                  <div className="text-xs text-white/30 font-mono mt-0.5">{reg.cpf}</div>
                 </div>
                 <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
-                  reg.veredito === 'Alerta'
-                    ? 'bg-danger/15 text-danger'
-                    : 'bg-safe/12 text-safe'
+                  reg.saida_em ? 'bg-white/8 text-white/35' : 'bg-safe/12 text-safe'
                 }`}>
-                  {reg.veredito}
+                  {reg.saida_em ? 'Saiu' : 'No local'}
                 </span>
                 <div className="text-[11px] text-white/20 flex items-center gap-1 flex-shrink-0">
                   <Clock size={10} />
-                  {new Date(reg.hora).toLocaleTimeString('pt-BR', {
+                  {new Date(reg.entrada_em).toLocaleTimeString('pt-BR', {
                     hour: '2-digit', minute: '2-digit',
                   })}
                 </div>
@@ -180,8 +249,8 @@ export default function Dashboard() {
         </h3>
         <p className="text-xs text-white/35 mb-4 leading-relaxed">
           Apaga <strong className="text-white/55">todas</strong> as medidas protetivas, vítimas,
-          agressores, presenças e pré-cadastros. Ação irreversível — use apenas em testes
-          ou ao encerrar o evento.
+          agressores, presenças, pré-cadastros e alertas. Ação irreversível — use apenas em testes
+          ou ao encerrar o evento. Confirme com a <strong className="text-white/55">sua senha</strong>.
         </p>
 
         {!resetAberto ? (
@@ -195,17 +264,10 @@ export default function Dashboard() {
         ) : (
           <div className="space-y-3 max-w-sm">
             <input
-              type="text"
-              value={resetUsuario}
-              onChange={e => setResetUsuario(e.target.value)}
-              placeholder="Usuário do sistema"
-              className="w-full bg-bg border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-danger/50 transition-colors"
-            />
-            <input
               type="password"
               value={resetSenha}
               onChange={e => setResetSenha(e.target.value)}
-              placeholder="Senha do sistema"
+              placeholder="Confirme sua senha"
               className="w-full bg-bg border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 outline-none focus:border-danger/50 transition-colors"
             />
             <div className="flex gap-2">

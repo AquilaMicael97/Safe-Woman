@@ -1,18 +1,16 @@
-// Mock credentials — password = username (lowercase)
-const USUARIOS = {
-  joao:    { nome: 'João',    role: 'admin' },
-  aquila:  { nome: 'Aquila', role: 'admin' },
-  nathaly: { nome: 'Nathaly', role: 'recepcao' },
-  herb:    { nome: 'Herb',   role: 'recepcao' },
-  ruan:     { nome: 'Ruan',    role: 'recepcao' },
-}
+import { API_BASE } from './api'
 
-export function validarLogin(usuario, senha) {
-  const u = usuario.trim().toLowerCase()
-  const s = senha.trim().toLowerCase()
-  const user = USUARIOS[u]
-  if (!user || s !== u) return null
-  return { username: u, nome: user.nome, role: user.role }
+// Login real no backend (tabela usuarios_sistema + fallback de ambiente).
+// Retorna { token, nome, role } ou lança Error com a mensagem do servidor.
+export async function loginSistema(usuario, senha) {
+  const res = await fetch(`${API_BASE}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuario: usuario.trim().toLowerCase(), senha }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.detail || 'Usuário ou senha incorretos.')
+  return { username: usuario.trim().toLowerCase(), nome: data.nome, role: data.role, token: data.token }
 }
 
 export function salvarSessao(dados) {
@@ -28,6 +26,13 @@ export function getSessao() {
 }
 
 export function encerrarSessao() {
+  const sessao = getSessao()
+  if (sessao?.token) {
+    fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${sessao.token}` },
+    }).catch(() => {})
+  }
   localStorage.removeItem('sw_user')
 }
 
