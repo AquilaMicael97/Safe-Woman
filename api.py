@@ -444,6 +444,29 @@ def _normalizar_cpf(cpf: str) -> str:
     return cpf
 
 
+def _salvar_foto_documento(cpf: str, caminho, content_type: str = None):
+    """
+    Guarda (upsert) a foto do documento apresentado na entrada, indexada por
+    CPF. Permite mostrar o documento na tela quando um agressor presente gera
+    alerta. Nunca derruba a verificação se falhar.
+    """
+    try:
+        with open(caminho, "rb") as f:
+            foto_bytes = f.read()
+        conn = ocr.conectar()
+        cur  = conn.cursor()
+        cur.execute("""
+            INSERT INTO fotos_documento (cpf, foto, content_type, atualizado_em)
+            VALUES (%s, %s, %s, NOW())
+            ON CONFLICT (cpf) DO UPDATE
+            SET foto = EXCLUDED.foto, content_type = EXCLUDED.content_type, atualizado_em = NOW()
+        """, (cpf, ocr.psycopg2.Binary(foto_bytes), content_type or "image/jpeg"))
+        conn.commit()
+        cur.close(); conn.close()
+    except Exception as e:
+        print(f"[fotos] Falha ao salvar foto do documento: {e}")
+
+
 def _montar_resposta_verificacao(cpf, nome, data_nascimento, resultado, consentimento=False):
     """
     Monta o dict de resposta unificado para verificação de documento/CPF.
@@ -713,6 +736,10 @@ async def verificar_documento(foto: UploadFile = File(...), consentimento: str =
                 "agressores_dentro": [],
             }
 
+        # Guarda a foto do documento para identificação visual em alertas
+        # (ex.: localizar um agressor que já está dentro do local)
+        _salvar_foto_documento(dados["cpf"], tmp_path, foto.content_type)
+
         # Vincula o CPF do documento a cadastros de vítima/agressor criados sem CPF
         # (medidas cujo documento não trazia o CPF — ex.: formato PROJUDI)
         ocr.vincular_cpf_por_nome(dados["cpf"], dados.get("nome"))
@@ -921,6 +948,29 @@ async def listar_presentes():
         return JSONResponse(status_code=500, content={
             "status": "erro", "mensagem": str(e)
         })
+
+
+# ─────────────────────────────────────────────
+#  ENDPOINT 7 — Foto do documento (identificação visual)
+# ─────────────────────────────────────────────
+
+@server.get("/api/foto-documento")
+async def foto_documento(cpf: str = Query(...), token: str = Depends(_requer_portaria)):
+    """
+    Retorna a foto do documento apresentado na entrada pelo CPF informado.
+    Restrito a sessões de portaria/admin — a imagem é dado pessoal sensível.
+    """
+    cpf_fmt = _normalizar_cpf(cpf)
+    conn = ocr.conectar()
+    cur  = conn.cursor()
+    cur.execute("SELECT foto, content_type FROM fotos_documento WHERE cpf = %s", (cpf_fmt,))
+    row = cur.fetchone()
+    cur.close(); conn.close()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Sem foto de documento para este CPF")
+
+    return Response(content=bytes(row[0]), media_type=row[1] or "image/jpeg")
 
 
 # ─────────────────────────────────────────────

@@ -80,6 +80,15 @@ CREATE TABLE IF NOT EXISTS auditoria (
     criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Foto do documento apresentado na entrada — usada para identificação
+-- visual quando um agressor presente gera alerta. Apagada no reset diário.
+CREATE TABLE IF NOT EXISTS fotos_documento (
+    cpf           VARCHAR(14) PRIMARY KEY,
+    foto          BYTEA NOT NULL,
+    content_type  VARCHAR(50) DEFAULT 'image/jpeg',
+    atualizado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS alertas (
     id        SERIAL PRIMARY KEY,
     nivel     VARCHAR(20) NOT NULL,

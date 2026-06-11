@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { AlertTriangle, RefreshCw, LogOut as LogOutIcon, Clock } from 'lucide-react'
 import { API_BASE } from '../../utils/api'
+import FotoDocumento from '../FotoDocumento'
 
 const TIPO_ESTILO = {
   agressor: { rotulo: 'Agressor', badge: 'bg-danger/15 text-danger',  ponto: 'bg-danger' },
@@ -101,30 +102,34 @@ export default function Presentes() {
                 initial={{ opacity: 0, x: -6 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                className={`flex items-center gap-4 bg-surface border rounded-xl px-4 py-3 ${
+                className={`bg-surface border rounded-xl px-4 py-3 ${
                   p.tipo === 'agressor' ? 'border-danger/35' : 'border-white/8'
                 }`}
               >
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${estilo.ponto}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white truncate">{p.nome || 'Desconhecido'}</div>
-                  <div className="text-xs text-white/30 font-mono mt-0.5">{p.cpf}</div>
+                <div className="flex items-center gap-4">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${estilo.ponto}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-white truncate">{p.nome || 'Desconhecido'}</div>
+                    <div className="text-xs text-white/30 font-mono mt-0.5">{p.cpf}</div>
+                  </div>
+                  <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${estilo.badge}`}>
+                    {estilo.rotulo}
+                  </span>
+                  <div className="text-[11px] text-white/20 flex items-center gap-1 flex-shrink-0">
+                    <Clock size={10} />
+                    {new Date(p.entrada_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <button
+                    onClick={() => registrarSaida(p)}
+                    disabled={baixando === p.cpf}
+                    className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35 hover:text-danger disabled:opacity-40 px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-danger/30 transition-all flex-shrink-0"
+                  >
+                    <LogOutIcon size={11} />
+                    Saída
+                  </button>
                 </div>
-                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${estilo.badge}`}>
-                  {estilo.rotulo}
-                </span>
-                <div className="text-[11px] text-white/20 flex items-center gap-1 flex-shrink-0">
-                  <Clock size={10} />
-                  {new Date(p.entrada_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </div>
-                <button
-                  onClick={() => registrarSaida(p)}
-                  disabled={baixando === p.cpf}
-                  className="flex items-center gap-1.5 text-[11px] font-semibold text-white/35 hover:text-danger disabled:opacity-40 px-2.5 py-1.5 rounded-lg border border-white/8 hover:border-danger/30 transition-all flex-shrink-0"
-                >
-                  <LogOutIcon size={11} />
-                  Saída
-                </button>
+                {/* Documento do agressor — identificação visual para a segurança */}
+                {p.tipo === 'agressor' && <FotoDocumento cpf={p.cpf} legenda={p.nome} />}
               </motion.div>
             )
           })}

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Camera, X, CheckCircle, AlertTriangle, AlertOctagon, RotateCcw, FileText, ShieldCheck, Ban } from 'lucide-react'
 import { adicionarRegistro } from '../../utils/history'
 import { API_BASE } from '../../utils/api'
+import FotoDocumento from '../FotoDocumento'
 
 const NIVEIS = {
   verde: {
@@ -468,6 +469,10 @@ export default function Portaria({ operador }) {
                     {medidaInfo.mensagem_alerta}
                   </p>
                 </div>
+                {/* Documento do agressor presente — identificação visual para a segurança */}
+                {medidaInfo.agressor_presente && medidaInfo.cpf_agressor && (
+                  <FotoDocumento cpf={medidaInfo.cpf_agressor} legenda={medidaInfo.nome_agressor} />
+                )}
               </div>
             )}
 
@@ -512,27 +517,28 @@ export default function Portaria({ operador }) {
 
                     <div className="space-y-2 mb-3">
                       {(resultado.agressores_dentro || []).map(a => (
-                        <div
-                          key={a.cpf}
-                          className="flex items-center justify-between gap-3 bg-danger/8 border border-danger/20 rounded-xl px-3 py-2.5"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-xs font-semibold text-white truncate">{a.nome}</p>
-                            <p className="text-[10px] text-white/40 font-mono">{a.cpf}</p>
+                        <div key={a.cpf}>
+                          <div className="flex items-center justify-between gap-3 bg-danger/8 border border-danger/20 rounded-xl px-3 py-2.5">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-white truncate">{a.nome}</p>
+                              <p className="text-[10px] text-white/40 font-mono">{a.cpf}</p>
+                            </div>
+                            {saidasOk.includes(a.cpf) ? (
+                              <span className="text-[11px] font-bold text-safe whitespace-nowrap">
+                                Saída registrada
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => registrarSaidaAgressor(a.cpf)}
+                                disabled={saindoCpf === a.cpf}
+                                className="text-[11px] font-bold text-danger border border-danger/35 hover:bg-danger/15 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap"
+                              >
+                                {saindoCpf === a.cpf ? 'Registrando...' : 'Registrar saída'}
+                              </button>
+                            )}
                           </div>
-                          {saidasOk.includes(a.cpf) ? (
-                            <span className="text-[11px] font-bold text-safe whitespace-nowrap">
-                              Saída registrada
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => registrarSaidaAgressor(a.cpf)}
-                              disabled={saindoCpf === a.cpf}
-                              className="text-[11px] font-bold text-danger border border-danger/35 hover:bg-danger/15 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap"
-                            >
-                              {saindoCpf === a.cpf ? 'Registrando...' : 'Registrar saída'}
-                            </button>
-                          )}
+                          {/* Documento apresentado na entrada — ajuda a localizar o agressor no local */}
+                          <FotoDocumento cpf={a.cpf} legenda={a.nome} />
                         </div>
                       ))}
                     </div>

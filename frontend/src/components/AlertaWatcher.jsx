@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertTriangle, X } from 'lucide-react'
 import { apiGet } from '../utils/api'
+import FotoDocumento from './FotoDocumento'
 
 // Vigia de alertas: consulta /api/admin/alertas a cada 8s e exibe um toast
 // no momento em que um conflito vítima×agressor é detectado na portaria.
@@ -67,6 +68,10 @@ export default function AlertaWatcher({ token }) {
                   {a.nome ? ` · ${a.nome}` : ''}
                 </div>
                 <div className="text-xs text-white/70 leading-relaxed">{a.mensagem}</div>
+                {/* Alerta vermelho = agressor — mostra o documento para identificação */}
+                {a.nivel.startsWith('vermelho') && a.cpf && (
+                  <FotoDocumento cpf={a.cpf} legenda={a.nome} />
+                )}
               </div>
               <button
                 onClick={() => dispensar(a.id)}
