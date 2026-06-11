@@ -39,6 +39,25 @@ def testar_conexao():
 
 
 # ─────────────────────────────────────────────
+#  HELPERS
+# ─────────────────────────────────────────────
+
+def sanitizar_cpf(cpf):
+    """
+    Normaliza um CPF para o formato 000.000.000-00.
+    Retorna None para valores ausentes, ilegíveis ou placeholders
+    ("Não encontrado", "Não Cadastrado") — nunca deixa texto inválido
+    ser usado como CPF no banco.
+    """
+    if not cpf:
+        return None
+    digitos = re.sub(r"\D", "", str(cpf))
+    if len(digitos) != 11:
+        return None
+    return f"{digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}"
+
+
+# ─────────────────────────────────────────────
 #  EXTRAÇÃO — CNH
 # ─────────────────────────────────────────────
 
@@ -59,9 +78,11 @@ def extrair_dados_cnh(caminho_foto):
     print(texto_bruto)
     print("-------------------------\n")
 
-    # CPF: 000.000.000-00
+    # CPF: 000.000.000-00 — normalizado para o formato padrão, garantindo
+    # que presenças e cruzamentos usem sempre a mesma grafia
     cpf_match = re.search(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', texto_bruto)
-    cpf = cpf_match.group(0) if cpf_match else "Não encontrado"
+    cpf = sanitizar_cpf(cpf_match.group(0)) if cpf_match else None
+    cpf = cpf or "Não encontrado"
 
     # Data de nascimento: primeira data DD/MM/AAAA
     datas = re.findall(r'\d{2}/\d{2}/\d{4}', texto_bruto)
@@ -223,10 +244,24 @@ def extrair_dados_medida_protetiva(caminho_foto):
         if a_match:
             nome_agressor = a_match.group(1).strip()
 
-        # CPF pode estar em qualquer parte do doc neste formato
-        cpf_all = re.findall(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', texto_unificado)
-        if cpf_all:
-            cpf_vitima = cpf_all[0]
+        # CPFs por proximidade: o CPF que aparece logo após cada rótulo
+        # pertence àquela parte (vítima = solicitante, agressor = noticiado).
+        # Sem isso o agressor ficava sem CPF neste formato e passava sem alerta.
+        rotulo_v = re.search(r'(?:solicitante|requerente)\(s\)', texto_unificado, re.IGNORECASE)
+        rotulo_a = re.search(r'(?:noticiado|requerido)\(s\)',    texto_unificado, re.IGNORECASE)
+
+        if rotulo_v:
+            fim = rotulo_a.start() if (rotulo_a and rotulo_a.start() > rotulo_v.start()) else None
+            cpf_vitima = _cpf_no_trecho(texto_unificado, rotulo_v.end(), fim)
+        if rotulo_a:
+            fim = rotulo_v.start() if (rotulo_v and rotulo_v.start() > rotulo_a.start()) else None
+            cpf_agressor = _cpf_no_trecho(texto_unificado, rotulo_a.end(), fim)
+
+        # Fallback: comportamento antigo (primeiro CPF do doc → vítima)
+        if cpf_vitima == "Não encontrado" and cpf_agressor == "Não encontrado":
+            cpf_all = re.findall(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', texto_unificado)
+            if cpf_all:
+                cpf_vitima = cpf_all[0]
 
     # ══════════════════════════════════════════════════════════════════════
     # FALLBACK — padrões genéricos
@@ -280,6 +315,20 @@ def _campo_na_secao(secao, rotulo_regex):
             if valor:
                 return valor
     return "Não encontrado"
+
+
+def _cpf_no_trecho(texto, inicio, fim=None, alcance=400):
+    """
+    Busca o primeiro CPF entre `inicio` e `fim` de um texto corrido.
+    Sem `fim`, limita a busca a `alcance` caracteres após o rótulo para não
+    capturar CPFs de outras partes do documento (advogados, serventia etc.).
+    Exige fronteira não-numérica para não casar dentro de números de processo.
+    """
+    if fim is None or fim <= inicio:
+        fim = inicio + alcance
+    trecho = texto[inicio:fim]
+    match = re.search(r'(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)', trecho)
+    return match.group(0) if match else "Não encontrado"
 
 
 def _cpf_na_secao(secao):
@@ -356,47 +405,81 @@ def criar_tabelas():
     print("✔ Tabelas criadas/verificadas com sucesso.")
 
 
+def _buscar_pessoa(cur, tabela, nome, cpf_valor):
+    """
+    Localiza um registro em `vitimas`/`agressores`.
+    Prioridade: CPF → nome exato de registro ainda sem CPF (permite
+    completar o CPF depois, quando a medida não o trazia).
+    """
+    if cpf_valor:
+        cur.execute(f"SELECT id FROM {tabela} WHERE cpf = %s", (cpf_valor,))
+        row = cur.fetchone()
+        if row:
+            return row[0]
+    if nome and nome != "Não encontrado":
+        cur.execute(
+            f"SELECT id FROM {tabela} WHERE cpf IS NULL AND LOWER(nome) = LOWER(%s) ORDER BY id LIMIT 1",
+            (nome,)
+        )
+        row = cur.fetchone()
+        if row:
+            return row[0]
+    return None
+
+
 def salvar_vitima(nome, cpf, data_nascimento=None):
-    """Insere ou retorna a vítima existente pelo CPF."""
+    """
+    Insere vítima ou retorna a existente.
+    Prioridade de busca: CPF (quando disponível) → nome exato sem CPF.
+    CPF ausente/ilegível vira NULL — nunca o texto "Não encontrado",
+    que colidia no UNIQUE(cpf) e sobrescrevia vítimas anteriores.
+    """
     conn = conectar()
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO vitimas (nome, cpf, data_nascimento)
-        VALUES (%s, %s, %s)
-        ON CONFLICT (cpf) DO UPDATE SET nome = EXCLUDED.nome
-        RETURNING id;
-    """, (nome, cpf or None, data_nascimento))
-    vitima_id = cur.fetchone()[0]
+
+    cpf_valor  = sanitizar_cpf(cpf)
+    vitima_id  = _buscar_pessoa(cur, "vitimas", nome, cpf_valor)
+
+    if vitima_id:
+        cur.execute("""
+            UPDATE vitimas
+            SET nome = %s,
+                cpf  = COALESCE(cpf, %s),
+                data_nascimento = COALESCE(%s, data_nascimento)
+            WHERE id = %s
+        """, (nome, cpf_valor, data_nascimento, vitima_id))
+        print(f"✔ Vítima já existe — ID {vitima_id}: {nome}")
+    else:
+        cur.execute(
+            "INSERT INTO vitimas (nome, cpf, data_nascimento) VALUES (%s, %s, %s) RETURNING id;",
+            (nome, cpf_valor, data_nascimento)
+        )
+        vitima_id = cur.fetchone()[0]
+        print(f"✔ Vítima salva — ID {vitima_id}: {nome} | CPF: {cpf_valor or 'não informado'}")
+
     conn.commit()
     cur.close()
     conn.close()
-    print(f"✔ Vítima salva — ID {vitima_id}: {nome}")
     return vitima_id
 
 
 def salvar_agressor(nome, cpf=None):
     """
     Insere agressor ou retorna o existente.
-    Prioridade de busca: CPF (quando disponível) → nome exato.
-    Se o registro já existe mas estava sem CPF, atualiza.
+    Prioridade de busca: CPF (quando disponível) → nome exato sem CPF.
+    Se o registro já existe mas estava sem CPF, completa o CPF.
     """
     conn = conectar()
     cur = conn.cursor()
 
-    cpf_valor = cpf if (cpf and cpf != "Não encontrado") else None
+    cpf_valor   = sanitizar_cpf(cpf)
+    agressor_id = _buscar_pessoa(cur, "agressores", nome, cpf_valor)
 
-    if cpf_valor:
-        cur.execute("SELECT id FROM agressores WHERE cpf = %s", (cpf_valor,))
-    else:
-        cur.execute("SELECT id FROM agressores WHERE LOWER(nome) = LOWER(%s)", (nome,))
-
-    existente = cur.fetchone()
-    if existente:
-        agressor_id = existente[0]
-        # Aproveita para salvar CPF se antes não havia
-        if cpf_valor:
-            cur.execute("UPDATE agressores SET cpf = %s WHERE id = %s AND cpf IS NULL",
-                        (cpf_valor, agressor_id))
+    if agressor_id:
+        cur.execute(
+            "UPDATE agressores SET nome = %s, cpf = COALESCE(cpf, %s) WHERE id = %s",
+            (nome, cpf_valor, agressor_id)
+        )
         print(f"✔ Agressor já existe — ID {agressor_id}: {nome}")
     else:
         cur.execute(
@@ -491,6 +574,32 @@ def registrar_saida(cpf):
     conn.close()
 
     if row:
+        return {"nome": row[0], "tipo": row[1], "entrada_em": str(row[2])}
+    return None
+
+
+def cancelar_entrada(cpf):
+    """
+    Remove a presença ativa do CPF — usado quando a portaria NEGA o acesso
+    após um alerta (a verificação registra a entrada automaticamente, então
+    a negativa precisa desfazer esse registro para não gerar falsos
+    "agressor presente" nas próximas verificações).
+    Retorna dict com os dados removidos ou None se não havia presença ativa.
+    """
+    conn = conectar()
+    cur  = conn.cursor()
+    cur.execute("""
+        DELETE FROM presencas
+        WHERE cpf = %s AND saida_em IS NULL
+        RETURNING nome, tipo, entrada_em
+    """, (cpf,))
+    row = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    if row:
+        print(f"✔ Entrada negada — presença removida: {row[0]} ({cpf})")
         return {"nome": row[0], "tipo": row[1], "entrada_em": str(row[2])}
     return None
 
@@ -598,6 +707,45 @@ def verificar_contrapartes_presentes(cpf_pessoa):
 # ─────────────────────────────────────────────
 #  CRUZAMENTO DE DADOS
 # ─────────────────────────────────────────────
+
+def vincular_cpf_por_nome(cpf, nome):
+    """
+    Vincula o CPF lido na CNH (portaria) a cadastros de vítima/agressor que
+    foram criados sem CPF — caso de medidas em que o documento não trazia o
+    CPF (ex.: formato PROJUDI). O vínculo exige nome completo idêntico
+    (case-insensitive) e só ocorre se o CPF ainda não pertence a outro
+    registro. Depois de vinculado, todo o cruzamento volta a ser por CPF.
+    Retorna dict indicando o que foi vinculado.
+    """
+    cpf_valor = sanitizar_cpf(cpf)
+    if not cpf_valor or not nome or nome == "Não encontrado":
+        return {"vitima": False, "agressor": False}
+
+    conn = conectar()
+    cur  = conn.cursor()
+    resultado = {}
+
+    for chave, tabela in (("vitima", "vitimas"), ("agressor", "agressores")):
+        cur.execute(f"""
+            UPDATE {tabela} SET cpf = %(cpf)s
+            WHERE id = (
+                SELECT id FROM {tabela}
+                WHERE cpf IS NULL AND LOWER(nome) = LOWER(%(nome)s)
+                ORDER BY id LIMIT 1
+            )
+            AND NOT EXISTS (SELECT 1 FROM {tabela} WHERE cpf = %(cpf)s)
+            RETURNING id
+        """, {"cpf": cpf_valor, "nome": nome})
+        vinculado = cur.fetchone() is not None
+        resultado[chave] = vinculado
+        if vinculado:
+            print(f"✔ CPF {cpf_valor} vinculado por nome ao cadastro de {chave}: {nome}")
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    return resultado
+
 
 def verificar_conflito_por_cpf(cpf_pessoa):
     """

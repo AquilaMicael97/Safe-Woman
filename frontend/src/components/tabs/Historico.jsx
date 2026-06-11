@@ -109,7 +109,7 @@ export default function Historico() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${
-                        reg.veredito === 'Alerta'
+                        ['Alerta', 'Entrada negada'].includes(reg.veredito)
                           ? 'bg-danger/15 text-danger'
                           : 'bg-safe/12 text-safe'
                       }`}>

@@ -276,8 +276,9 @@ async def vitima_pre_cadastro(
             VALUES (%s,%s,%s,%s,%s,%s,%s)
             ON CONFLICT (numero_processo) DO NOTHING
             RETURNING id
-        """, (dados["numero_processo"], dados["nome_vitima"], dados["cpf_vitima"],
-              dados["nome_agressor"], dados.get("cpf_agressor"), dados["data_emissao"], dados["vara"]))
+        """, (dados["numero_processo"], dados["nome_vitima"], ocr.sanitizar_cpf(dados["cpf_vitima"]),
+              dados["nome_agressor"], ocr.sanitizar_cpf(dados.get("cpf_agressor")),
+              dados["data_emissao"], dados["vara"]))
         row = cur.fetchone()
         conn.commit(); cur.close(); conn.close()
 
@@ -419,12 +420,43 @@ async def cadastrar_medida(foto: UploadFile = File(...)):
         row = cur.fetchone()
         conn.commit()
 
-        # Verifica se o agressor já está presente no local
-        cpf_agressor = dados.get("cpf_agressor", "Não encontrado")
+        # Verifica se o agressor já está presente no local.
+        # CPFs normalizados para casar com o formato gravado em presencas;
+        # se a medida não trouxe o CPF, tenta pelo CPF já salvo no cadastro
+        # (pode ter sido vinculado por nome numa entrada anterior).
+        cpf_agressor = ocr.sanitizar_cpf(dados.get("cpf_agressor"))
+        cpf_vitima   = ocr.sanitizar_cpf(dados.get("cpf_vitima"))
+
+        if not cpf_agressor:
+            cur.execute("SELECT cpf FROM agressores WHERE id = %s", (agressor_id,))
+            row_cpf = cur.fetchone()
+            cpf_agressor = row_cpf[0] if row_cpf else None
+        if not cpf_vitima:
+            cur.execute("SELECT cpf FROM vitimas WHERE id = %s", (vitima_id,))
+            row_cpf = cur.fetchone()
+            cpf_vitima = row_cpf[0] if row_cpf else None
+
+        # Último recurso: agressor sem CPF em lugar nenhum — procura presença
+        # ativa pelo nome completo (ele entrou antes com a CNH) e, achando,
+        # completa o CPF do cadastro para os próximos cruzamentos.
+        if not cpf_agressor and dados["nome_agressor"] != "Não encontrado":
+            cur.execute(
+                "SELECT cpf FROM presencas WHERE saida_em IS NULL AND LOWER(nome) = LOWER(%s)",
+                (dados["nome_agressor"],)
+            )
+            row_p = cur.fetchone()
+            if row_p:
+                cpf_agressor = row_p[0]
+                cur.execute(
+                    "UPDATE agressores SET cpf = %s WHERE id = %s AND cpf IS NULL",
+                    (cpf_agressor, agressor_id)
+                )
+                conn.commit()
+
         agressor_presente = False
         vitima_presente   = False
 
-        if cpf_agressor and cpf_agressor != "Não encontrado":
+        if cpf_agressor:
             cur.execute(
                 "SELECT id FROM presencas WHERE cpf = %s AND saida_em IS NULL",
                 (cpf_agressor,)
@@ -438,8 +470,7 @@ async def cadastrar_medida(foto: UploadFile = File(...)):
                 )
                 conn.commit()
 
-        cpf_vitima = dados.get("cpf_vitima", "Não encontrado")
-        if cpf_vitima and cpf_vitima != "Não encontrado":
+        if cpf_vitima:
             cur.execute(
                 "SELECT id FROM presencas WHERE cpf = %s AND saida_em IS NULL",
                 (cpf_vitima,)
@@ -496,18 +527,25 @@ async def cadastrar_medida(foto: UploadFile = File(...)):
         tmp_path.unlink(missing_ok=True)
 
 
-def _ativar_pre_cadastros(cpf_vitima: str):
-    """Promove medidas pré-cadastradas para o sistema principal quando a vítima apresenta sua CNH."""
+def _ativar_pre_cadastros(cpf_vitima: str, nome_vitima: str = None):
+    """
+    Promove medidas pré-cadastradas para o sistema principal quando a vítima
+    apresenta sua CNH. Casa por CPF e, para medidas cujo documento não trazia
+    o CPF da vítima, por nome completo idêntico.
+    """
     conn = ocr.conectar()
     cur  = conn.cursor()
     cur.execute("""
         SELECT numero_processo, nome_vitima, cpf_vitima, nome_agressor, cpf_agressor, data_emissao, vara
         FROM pre_cadastros_medida
-        WHERE cpf_vitima = %s AND ativada = FALSE
-    """, (cpf_vitima,))
+        WHERE ativada = FALSE
+          AND (cpf_vitima = %s
+               OR (cpf_vitima IS NULL AND LOWER(nome_vitima) = LOWER(%s)))
+    """, (cpf_vitima, nome_vitima or ""))
     pendentes = cur.fetchall()
     for p in pendentes:
-        vitima_id   = ocr.salvar_vitima(p[1], p[2])
+        # Se a medida veio sem CPF da vítima, usa o da CNH apresentada agora
+        vitima_id   = ocr.salvar_vitima(p[1], p[2] or cpf_vitima)
         agressor_id = ocr.salvar_agressor(p[3], p[4])
         ocr.salvar_medida_protetiva(p[0], vitima_id, agressor_id, p[5], p[6])
         cur.execute("UPDATE pre_cadastros_medida SET ativada=TRUE WHERE numero_processo=%s", (p[0],))
@@ -543,8 +581,12 @@ async def verificar_cnh(foto: UploadFile = File(...)):
                 "agressores_dentro": [],
             }
 
+        # Vincula o CPF da CNH a cadastros de vítima/agressor criados sem CPF
+        # (medidas cujo documento não trazia o CPF — ex.: formato PROJUDI)
+        ocr.vincular_cpf_por_nome(dados["cpf"], dados.get("nome"))
+
         # Ativa pré-cadastros da vítima (medidas cadastradas de casa)
-        _ativar_pre_cadastros(dados["cpf"])
+        _ativar_pre_cadastros(dados["cpf"], dados.get("nome"))
 
         resultado = ocr.verificar_conflito_por_cpf(dados["cpf"])
         return _montar_resposta_verificacao(
@@ -575,6 +617,40 @@ async def verificar_cpf_manual(cpf: str = Query(...)):
     except Exception as e:
         return JSONResponse(status_code=500, content={
             "status": "erro", "mensagem": f"Erro ao verificar CPF: {str(e)}"
+        })
+
+
+# ─────────────────────────────────────────────
+#  ENDPOINT 3.5 — Entrada Negada (desfaz registro automático)
+# ─────────────────────────────────────────────
+
+@server.post("/api/entrada-negada")
+async def entrada_negada(cpf: str = Query(...)):
+    """
+    Desfaz o registro automático de entrada quando a portaria nega o acesso
+    após um alerta. Remove a presença ativa do CPF para que a pessoa não
+    conste como "dentro do local".
+    """
+    try:
+        cpf_fmt  = _normalizar_cpf(cpf)
+        removido = ocr.cancelar_entrada(cpf_fmt)
+
+        if removido is None:
+            return JSONResponse(status_code=404, content={
+                "status"  : "erro",
+                "mensagem": f"CPF {cpf_fmt} não possui presença ativa para cancelar."
+            })
+
+        return {
+            "status"  : "ok",
+            "cpf"     : cpf_fmt,
+            "nome"    : removido["nome"],
+            "mensagem": f"Entrada negada — registro de presença de {removido['nome']} removido.",
+        }
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={
+            "status": "erro", "mensagem": f"Erro ao cancelar entrada: {str(e)}"
         })
 
 

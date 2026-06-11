@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Camera, X, CheckCircle, AlertTriangle, AlertOctagon, RotateCcw } from 'lucide-react'
+import { Camera, X, CheckCircle, AlertTriangle, AlertOctagon, RotateCcw, FileText, ShieldCheck, Ban } from 'lucide-react'
 import { adicionarRegistro } from '../../utils/history'
 import { API_BASE } from '../../utils/api'
 
@@ -62,38 +62,172 @@ function InfoRow({ label, valor }) {
   )
 }
 
-export default function Portaria({ operador }) {
-  const [arquivo, setArquivo] = useState(null)
-  const [preview, setPreview] = useState(null)
-  const [carregando, setCarregando] = useState(false)
-  const [resultado, setResultado] = useState(null)
-  const [erro, setErro] = useState(null)
-  const inputRef = useRef(null)
+function ZonaCaptura({ etapa, titulo, subtitulo, Icone, preview, inputRef, onSelecionar, onLimpar, compacta }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className="w-5 h-5 rounded-full bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center">
+          {etapa}
+        </span>
+        <span className="text-sm font-semibold text-white/80">{titulo}</span>
+      </div>
 
-  function selecionar(file) {
+      {!preview ? (
+        <div
+          onDragOver={e => e.preventDefault()}
+          onDrop={e => {
+            e.preventDefault()
+            const file = e.dataTransfer?.files[0]
+            if (file) onSelecionar(file)
+          }}
+          onClick={() => inputRef.current?.click()}
+          className={`border-2 border-dashed border-white/12 hover:border-accent/50 rounded-2xl text-center cursor-pointer transition-all bg-surface hover:bg-accent/5 ${
+            compacta ? 'p-6' : 'p-9'
+          }`}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={e => onSelecionar(e.target.files[0])}
+          />
+          <Icone size={compacta ? 26 : 32} className="mx-auto text-white/15 mb-2" />
+          <p className="text-sm font-semibold text-white/45">Toque para fotografar</p>
+          <p className="text-xs text-white/22 mt-1">{subtitulo}</p>
+        </div>
+      ) : (
+        <div className="relative rounded-2xl overflow-hidden border border-white/10">
+          <img
+            src={preview}
+            alt={`Prévia — ${titulo}`}
+            className={`w-full object-cover ${compacta ? 'max-h-40' : 'max-h-56'}`}
+          />
+          <span className="absolute bottom-2 left-2.5 text-[10px] font-bold bg-black/65 text-white/80 px-2 py-1 rounded-full">
+            {titulo}
+          </span>
+          <button
+            onClick={onLimpar}
+            className="absolute top-2.5 right-2.5 w-7 h-7 bg-black/65 hover:bg-black/85 rounded-full flex items-center justify-center text-white transition-colors"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function Portaria({ operador }) {
+  const [arquivoCnh,    setArquivoCnh]    = useState(null)
+  const [previewCnh,    setPreviewCnh]    = useState(null)
+  const [arquivoMedida, setArquivoMedida] = useState(null)
+  const [previewMedida, setPreviewMedida] = useState(null)
+  const [carregando, setCarregando] = useState(false)
+  const [resultado,  setResultado]  = useState(null)
+  const [medidaInfo, setMedidaInfo] = useState(null)
+  const [erro,       setErro]       = useState(null)
+  const [negandoEntrada, setNegandoEntrada] = useState(false)
+  const [entradaNegada,  setEntradaNegada]  = useState(false)
+  const [erroNegar,      setErroNegar]      = useState(null)
+  const inputCnhRef    = useRef(null)
+  const inputMedidaRef = useRef(null)
+
+  function selecionarCnh(file) {
     if (!file) return
-    setArquivo(file)
-    setPreview(URL.createObjectURL(file))
+    setArquivoCnh(file)
+    setPreviewCnh(URL.createObjectURL(file))
     setResultado(null)
     setErro(null)
+  }
+
+  function selecionarMedida(file) {
+    if (!file) return
+    setArquivoMedida(file)
+    setPreviewMedida(URL.createObjectURL(file))
+    setResultado(null)
+    setErro(null)
+  }
+
+  function limparCnh() {
+    setArquivoCnh(null)
+    setPreviewCnh(null)
+    if (inputCnhRef.current) inputCnhRef.current.value = ''
+  }
+
+  function limparMedida() {
+    setArquivoMedida(null)
+    setPreviewMedida(null)
+    if (inputMedidaRef.current) inputMedidaRef.current.value = ''
   }
 
   function limpar() {
-    setArquivo(null)
-    setPreview(null)
+    limparCnh()
+    limparMedida()
     setResultado(null)
+    setMedidaInfo(null)
     setErro(null)
-    if (inputRef.current) inputRef.current.value = ''
+    setNegandoEntrada(false)
+    setEntradaNegada(false)
+    setErroNegar(null)
+  }
+
+  async function negarEntrada() {
+    if (!resultado?.cpf) return
+    setNegandoEntrada(true)
+    setErroNegar(null)
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/entrada-negada?cpf=${encodeURIComponent(resultado.cpf)}`, { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErroNegar(data.mensagem || data.detail || 'Erro ao registrar a negativa.')
+        return
+      }
+
+      setEntradaNegada(true)
+      adicionarRegistro({
+        operador: operador || 'Desconhecido',
+        nome:     resultado.nome || '',
+        cpf:      resultado.cpf  || '',
+        veredito: 'Entrada negada',
+      })
+    } catch {
+      setErroNegar('Erro de conexão com o servidor.')
+    } finally {
+      setNegandoEntrada(false)
+    }
   }
 
   async function verificar() {
-    if (!arquivo) return
+    if (!arquivoCnh) return
     setCarregando(true)
     setErro(null)
 
     try {
+      // Etapa 2 (se houver): cadastra a medida protetiva ANTES de verificar a CNH,
+      // para que a vítima já entre sinalizada no resultado da verificação.
+      let dadosMedida = null
+      if (arquivoMedida) {
+        const formMedida = new FormData()
+        formMedida.append('foto', arquivoMedida)
+
+        const resMedida  = await fetch(`${API_BASE}/api/cadastrar-medida`, { method: 'POST', body: formMedida })
+        const dataMedida = await resMedida.json()
+
+        if (!resMedida.ok || dataMedida.status === 'erro') {
+          setErro(dataMedida.mensagem || 'Erro ao processar a medida protetiva. Refaça a foto.')
+          setCarregando(false)
+          return
+        }
+        dadosMedida = dataMedida
+      }
+
+      // Etapa 1: verificação OCR da CNH (obrigatória para todos)
       const form = new FormData()
-      form.append('foto', arquivo)
+      form.append('foto', arquivoCnh)
 
       const res  = await fetch(`${API_BASE}/api/verificar-cnh`, { method: 'POST', body: form })
       const data = await res.json()
@@ -105,6 +239,7 @@ export default function Portaria({ operador }) {
       }
 
       setResultado(data)
+      setMedidaInfo(dadosMedida)
 
       adicionarRegistro({
         operador: operador || 'Desconhecido',
@@ -119,13 +254,9 @@ export default function Portaria({ operador }) {
     }
   }
 
-  function onDrop(e) {
-    e.preventDefault()
-    const file = e.dataTransfer?.files[0]
-    if (file) selecionar(file)
-  }
-
   const cfg = resultado ? (NIVEIS[resultado.nivel] ?? NIVEIS.verde) : null
+  // Alerta detectado no cadastro da medida (ex.: agressor já presente no local)
+  const medidaCfg = medidaInfo?.alerta ? (NIVEIS[medidaInfo.nivel] ?? NIVEIS.vermelho) : null
 
   return (
     <div className="max-w-md mx-auto px-5 py-8">
@@ -140,50 +271,37 @@ export default function Portaria({ operador }) {
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.3 }}
           >
-            <h2 className="text-lg font-bold text-white mb-1">Verificar CNH</h2>
+            <h2 className="text-lg font-bold text-white mb-1">Verificação de entrada</h2>
             <p className="text-sm text-white/35 mb-6">
-              Fotografe ou faça upload do documento para verificar
+              Fotografe a CNH de todos os clientes. A medida protetiva é apenas para vítimas.
             </p>
 
-            {/* Zona de upload */}
-            {!preview ? (
-              <div
-                onDragOver={e => e.preventDefault()}
-                onDrop={onDrop}
-                onClick={() => inputRef.current?.click()}
-                className="border-2 border-dashed border-white/12 hover:border-accent/50 rounded-2xl p-12 text-center cursor-pointer transition-all bg-surface hover:bg-accent/5"
-              >
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={e => selecionar(e.target.files[0])}
-                />
-                <Camera size={36} className="mx-auto text-white/15 mb-3" />
-                <p className="text-sm font-semibold text-white/45">
-                  Toque para fotografar
-                </p>
-                <p className="text-xs text-white/22 mt-1">
-                  ou arraste o arquivo aqui · JPG, PNG
-                </p>
-              </div>
-            ) : (
-              <div className="relative rounded-2xl overflow-hidden border border-white/10 mb-4">
-                <img
-                  src={preview}
-                  alt="Prévia"
-                  className="w-full max-h-56 object-cover"
-                />
-                <button
-                  onClick={limpar}
-                  className="absolute top-2.5 right-2.5 w-7 h-7 bg-black/65 hover:bg-black/85 rounded-full flex items-center justify-center text-white transition-colors"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            )}
+            <div className="space-y-5">
+              {/* Etapa 1 — CNH (obrigatória) */}
+              <ZonaCaptura
+                etapa="1"
+                titulo="CNH — obrigatória"
+                subtitulo="Documento pessoal de todos os clientes · JPG, PNG"
+                Icone={Camera}
+                preview={previewCnh}
+                inputRef={inputCnhRef}
+                onSelecionar={selecionarCnh}
+                onLimpar={limparCnh}
+              />
+
+              {/* Etapa 2 — Medida protetiva (apenas vítimas) */}
+              <ZonaCaptura
+                etapa="2"
+                titulo="Medida protetiva — apenas vítimas"
+                subtitulo="Fotografe somente se a cliente apresentar a medida"
+                Icone={FileText}
+                preview={previewMedida}
+                inputRef={inputMedidaRef}
+                onSelecionar={selecionarMedida}
+                onLimpar={limparMedida}
+                compacta
+              />
+            </div>
 
             {/* Erro */}
             <AnimatePresence>
@@ -201,8 +319,8 @@ export default function Portaria({ operador }) {
 
             <button
               onClick={verificar}
-              disabled={!arquivo || carregando}
-              className="w-full mt-4 bg-accent hover:bg-accent/85 active:scale-[0.98] disabled:opacity-30 text-white font-semibold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+              disabled={!arquivoCnh || carregando}
+              className="w-full mt-5 bg-accent hover:bg-accent/85 active:scale-[0.98] disabled:opacity-30 text-white font-semibold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
             >
               {carregando ? (
                 <>
@@ -210,9 +328,15 @@ export default function Portaria({ operador }) {
                   Processando...
                 </>
               ) : (
-                'Verificar documento'
+                arquivoMedida ? 'Verificar CNH + Medida protetiva' : 'Verificar documento'
               )}
             </button>
+
+            {!arquivoCnh && arquivoMedida && (
+              <p className="mt-2 text-xs text-warn text-center">
+                A foto da CNH é obrigatória para concluir a verificação.
+              </p>
+            )}
           </motion.div>
         )}
 
@@ -242,12 +366,79 @@ export default function Portaria({ operador }) {
               )}
             </motion.div>
 
+            {/* Alerta do cadastro da medida (ex.: agressor já presente no local) */}
+            {medidaCfg && medidaInfo.mensagem_alerta && (
+              <div
+                className={`border-2 rounded-2xl p-4 mb-4 ${medidaCfg.fundo} ${medidaCfg.borda} ${
+                  medidaCfg.pulsar ? 'animate-pulse-danger' : ''
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <medidaCfg.Icon size={20} className={`${medidaCfg.texto} mt-0.5 shrink-0`} />
+                  <p className="text-sm font-semibold text-white/80 leading-relaxed">
+                    {medidaInfo.mensagem_alerta}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Confirmação da medida protetiva cadastrada */}
+            {medidaInfo && (
+              <div className="flex items-start gap-3 bg-safe/8 border border-safe/25 rounded-xl px-4 py-3 mb-4">
+                <ShieldCheck size={18} className="text-safe mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-safe">
+                    {medidaInfo.ja_existia ? 'Medida protetiva já cadastrada' : 'Medida protetiva cadastrada'}
+                  </p>
+                  <p className="text-xs text-white/50 mt-0.5">
+                    Processo {medidaInfo.numero_processo}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Dados identificados */}
             <div className="space-y-2 mb-5">
               <InfoRow label="Nome"              valor={resultado.nome} />
               <InfoRow label="CPF"               valor={resultado.cpf} />
               <InfoRow label="Data de Nascimento" valor={resultado.data_nascimento} />
+              {medidaInfo && (
+                <InfoRow label="Agressor (medida)" valor={medidaInfo.nome_agressor} />
+              )}
             </div>
+
+            {/* Entrada negada — desfaz o registro automático de presença */}
+            {resultado.alerta && resultado.cpf && (
+              <div className="mb-3">
+                {entradaNegada ? (
+                  <div className="flex items-center gap-2 bg-danger/10 border border-danger/25 rounded-xl px-4 py-3 text-xs font-semibold text-danger">
+                    <Ban size={14} className="shrink-0" />
+                    Entrada negada — registro de presença removido.
+                  </div>
+                ) : (
+                  <button
+                    onClick={negarEntrada}
+                    disabled={negandoEntrada}
+                    className="w-full flex items-center justify-center gap-2 bg-danger/12 border border-danger/35 hover:bg-danger/20 disabled:opacity-50 text-danger font-semibold py-3 rounded-xl transition-all text-sm"
+                  >
+                    {negandoEntrada ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-danger/30 border-t-danger rounded-full animate-spin" />
+                        Removendo registro...
+                      </>
+                    ) : (
+                      <>
+                        <Ban size={14} />
+                        Entrada negada
+                      </>
+                    )}
+                  </button>
+                )}
+                {erroNegar && (
+                  <p className="mt-2 text-xs text-danger">{erroNegar}</p>
+                )}
+              </div>
+            )}
 
             {/* Nova verificação */}
             <button
