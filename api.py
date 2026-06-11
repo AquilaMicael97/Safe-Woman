@@ -392,7 +392,7 @@ async def vitima_pre_cadastro(
             "numero_processo" : dados["numero_processo"],
             "nome_vitima"     : dados["nome_vitima"],
             "nome_agressor"   : dados["nome_agressor"],
-            "mensagem"        : "Medida pré-cadastrada. Será ativada quando você apresentar sua CNH na entrada do evento."
+            "mensagem"        : "Medida pré-cadastrada. Será ativada quando você apresentar seu documento na entrada do evento."
         }
     finally:
         tmp_path.unlink(missing_ok=True)
@@ -673,18 +673,20 @@ def _ativar_pre_cadastros(cpf_vitima: str, nome_vitima: str = None):
 
 
 # ─────────────────────────────────────────────
-#  ENDPOINT 2 — Verificar CNH na Portaria (ENTRADA)
+#  ENDPOINT 2 — Verificar documento na Portaria (ENTRADA)
+#  Aceita CNH, RG antigo, CIN (RG novo) e versões digitais
 # ─────────────────────────────────────────────
 
-@server.post("/api/verificar-cnh")
-async def verificar_cnh(foto: UploadFile = File(...)):
+@server.post("/api/verificar-documento")
+@server.post("/api/verificar-cnh")  # alias retrocompatível
+async def verificar_documento(foto: UploadFile = File(...)):
     """
-    Lê a CNH, verifica medidas protetivas e registra entrada.
-    Cruza com presenças ativas para detectar urgência.
+    Lê o documento de identificação, verifica medidas protetivas e registra
+    entrada. Cruza com presenças ativas para detectar urgência.
     """
     tmp_path = await _salvar_temp(foto)
     try:
-        dados = ocr.extrair_dados_cnh(str(tmp_path))
+        dados = ocr.extrair_dados_documento(str(tmp_path))
 
         if dados["cpf"] == "Não encontrado":
             return {
@@ -695,13 +697,13 @@ async def verificar_cnh(foto: UploadFile = File(...)):
                 "data_nascimento": dados.get("data_nascimento", ""),
                 "alerta"         : False,
                 "urgente"        : False,
-                "mensagem"       : "CPF não detectado. Tente novamente ou digite o CPF.",
+                "mensagem"       : "CPF não detectado no documento. RGs antigos podem não ter CPF — tente novamente ou digite o CPF.",
                 "medidas_ativas" : [],
                 "vitimas_dentro" : [],
                 "agressores_dentro": [],
             }
 
-        # Vincula o CPF da CNH a cadastros de vítima/agressor criados sem CPF
+        # Vincula o CPF do documento a cadastros de vítima/agressor criados sem CPF
         # (medidas cujo documento não trazia o CPF — ex.: formato PROJUDI)
         ocr.vincular_cpf_por_nome(dados["cpf"], dados.get("nome"))
 
@@ -715,7 +717,7 @@ async def verificar_cnh(foto: UploadFile = File(...)):
 
     except Exception as e:
         return JSONResponse(status_code=500, content={
-            "status": "erro", "mensagem": f"Erro ao processar CNH: {str(e)}"
+            "status": "erro", "mensagem": f"Erro ao processar documento: {str(e)}"
         })
     finally:
         tmp_path.unlink(missing_ok=True)
@@ -820,17 +822,17 @@ async def liberar_entrada(cpf: str = Query(...), nome: str = Query(default=""), 
 @server.post("/api/saida")
 async def registrar_saida(foto: UploadFile = File(...)):
     """
-    Lê a CNH na saída e dá baixa na presença ativa da pessoa.
+    Lê o documento na saída e dá baixa na presença ativa da pessoa.
     Retorna confirmação com nome, tipo e horário de entrada.
     """
     tmp_path = await _salvar_temp(foto)
     try:
-        dados = ocr.extrair_dados_cnh(str(tmp_path))
+        dados = ocr.extrair_dados_documento(str(tmp_path))
 
         if dados["cpf"] == "Não encontrado":
             return JSONResponse(status_code=422, content={
                 "status"  : "erro",
-                "mensagem": "CPF não detectado na CNH. Tente novamente ou use a saída manual."
+                "mensagem": "CPF não detectado no documento. Tente novamente ou use a saída manual."
             })
 
         baixa = ocr.registrar_saida(dados["cpf"])

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AlertCircle, Eye, EyeOff } from 'lucide-react'
@@ -241,7 +241,7 @@ export default function Login() {
                 </p>
 
                 <div className="bg-vitima/8 border border-vitima/20 rounded-xl px-4 py-3 text-xs text-vitima/90 leading-relaxed mb-5">
-                  💡 Cadastre de casa com segurança. Sua proteção só será <strong>ativada</strong> quando você apresentar a CNH na entrada.
+                  💡 Cadastre de casa com segurança. Sua proteção só será <strong>ativada</strong> quando você apresentar o documento na entrada.
                 </div>
 
                 <form onSubmit={handleVitima} className="space-y-4">

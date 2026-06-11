@@ -332,15 +332,15 @@ export default function Portaria({ operador }) {
           >
             <h2 className="text-lg font-bold text-white mb-1">Verificação de entrada</h2>
             <p className="text-sm text-white/35 mb-6">
-              Fotografe a CNH de todos os clientes. A medida protetiva é apenas para vítimas.
+              Fotografe o documento de todos os clientes. A medida protetiva é apenas para vítimas.
             </p>
 
             <div className="space-y-5">
-              {/* Etapa 1 — CNH (obrigatória) */}
+              {/* Etapa 1 — Documento com CPF (obrigatório) */}
               <ZonaCaptura
                 etapa="1"
-                titulo="CNH — obrigatória"
-                subtitulo="Documento pessoal de todos os clientes · JPG, PNG"
+                titulo="Documento com CPF — obrigatório"
+                subtitulo="CNH, RG ou versão digital · JPG, PNG"
                 Icone={Camera}
                 preview={previewCnh}
                 inputRef={inputCnhRef}
@@ -387,13 +387,13 @@ export default function Portaria({ operador }) {
                   Processando...
                 </>
               ) : (
-                arquivoMedida ? 'Verificar CNH + Medida protetiva' : 'Verificar documento'
+                arquivoMedida ? 'Verificar documento + Medida protetiva' : 'Verificar documento'
               )}
             </button>
 
             {!arquivoCnh && arquivoMedida && (
               <p className="mt-2 text-xs text-warn text-center">
-                A foto da CNH é obrigatória para concluir a verificação.
+                A foto do documento é obrigatória para concluir a verificação.
               </p>
             )}
           </motion.div>

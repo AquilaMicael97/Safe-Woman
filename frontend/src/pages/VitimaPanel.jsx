@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LogOut, Upload, X, FileText, CheckCircle, Clock } from 'lucide-react'
@@ -151,7 +151,7 @@ export default function VitimaPanel() {
           <p className="text-sm font-bold text-white mb-1">Área de Proteção</p>
           <p className="text-xs text-white/45 leading-relaxed">
             Cadastre sua medida protetiva aqui com segurança.<br />
-            Ela será <span className="text-vitima font-semibold">ativada automaticamente</span> quando você apresentar sua CNH na entrada do evento.
+            Ela será <span className="text-vitima font-semibold">ativada automaticamente</span> quando você apresentar seu documento na entrada do evento.
           </p>
         </motion.div>
 
@@ -258,7 +258,7 @@ export default function VitimaPanel() {
                     ) : (
                       <>
                         <Clock size={12} className="text-warn" />
-                        <span className="text-[11px] font-semibold text-warn">Pendente — aguardando CNH na entrada</span>
+                        <span className="text-[11px] font-semibold text-warn">Pendente — aguardando documento na entrada</span>
                       </>
                     )}
                   </div>

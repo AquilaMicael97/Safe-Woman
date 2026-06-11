@@ -58,13 +58,26 @@ def sanitizar_cpf(cpf):
 
 
 # ─────────────────────────────────────────────
-#  EXTRAÇÃO — CNH
+#  EXTRAÇÃO — DOCUMENTO DE IDENTIFICAÇÃO
+#  (CNH, RG antigo, CIN/RG novo, versões digitais)
 # ─────────────────────────────────────────────
 
-def extrair_dados_cnh(caminho_foto):
+# Palavras que nunca são nome de pessoa — cabeçalhos e rótulos dos documentos
+_NAO_EH_NOME = re.compile(
+    r'BRASIL|REPUBLICA|FEDERATIVA|MINIST|DEPART|TRANSIT|HABILI|NACION|'
+    r'IDENTIDADE|CARTEIRA|SECRETARIA|SEGURANCA|SEGURANÇA|ESTADO|GOVERNO|'
+    r'INSTITUTO|VALIDA|FILIACAO|FILIAÇÃO|NATURALIDADE|REGISTRO|EMISSOR|'
+    r'ASSINATURA|POLEGAR|DIRETOR|EXPEDI',
+    re.IGNORECASE,
+)
+
+
+def extrair_dados_documento(caminho_foto):
     """
-    Extrai nome, CPF e data de nascimento de uma foto de CNH.
-    Retorna um dicionário com os campos extraídos.
+    Extrai nome, CPF e data de nascimento de uma foto de documento de
+    identificação com CPF impresso: CNH, RG antigo, CIN (RG novo) ou as
+    versões digitais. O OCR é genérico; o que muda entre documentos são
+    as heurísticas de localização dos campos.
     """
     client = vision.ImageAnnotatorClient()
 
@@ -74,59 +87,73 @@ def extrair_dados_cnh(caminho_foto):
     response = client.document_text_detection(image=vision.Image(content=content))
     texto_bruto = response.text_annotations[0].description if response.text_annotations else ""
 
-    print("\n--- TEXTO BRUTO (CNH) ---")
+    print("\n--- TEXTO BRUTO (DOCUMENTO) ---")
     print(texto_bruto)
-    print("-------------------------\n")
+    print("-------------------------------\n")
 
     # CPF: 000.000.000-00 — normalizado para o formato padrão, garantindo
-    # que presenças e cruzamentos usem sempre a mesma grafia
+    # que presenças e cruzamentos usem sempre a mesma grafia.
+    # Na CIN o CPF é o próprio número do documento; em todos os casos o
+    # padrão de 11 dígitos com pontuação é único no texto.
     cpf_match = re.search(r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}', texto_bruto)
     cpf = sanitizar_cpf(cpf_match.group(0)) if cpf_match else None
     cpf = cpf or "Não encontrado"
 
-    # Data de nascimento: primeira data DD/MM/AAAA
-    datas = re.findall(r'\d{2}/\d{2}/\d{4}', texto_bruto)
-    data_nasc = datas[0] if datas else "Não encontrada"
+    # Data de nascimento: prioriza a data próxima ao rótulo "NASC..." (RG/CIN
+    # trazem outras datas, como expedição); sem rótulo, usa a primeira data.
+    nasc_match = re.search(r'NASC[A-ZÇÃ]*\W{0,20}?(\d{2}/\d{2}/\d{4})', texto_bruto, re.IGNORECASE)
+    if nasc_match:
+        data_nasc = nasc_match.group(1)
+    else:
+        datas = re.findall(r'\d{2}/\d{2}/\d{4}', texto_bruto)
+        data_nasc = datas[0] if datas else "Não encontrada"
 
-    # Nome: tenta rótulo "NOME" → senão, busca linha em maiúsculas com 2-4 palavras
-    # que apareça antes de "DOC IDENTIDADE" ou "CPF" (padrão de CNHs sem rótulo)
     linhas = [l.strip() for l in texto_bruto.split('\n') if l.strip()]
     nome = "Não encontrado"
 
-    # Estratégia 1: rótulo explícito "NOME"
-    for i, linha in enumerate(linhas):
-        if re.search(r'\bNOME\b', linha.upper()):
-            candidato = linha.split("NOME", 1)[-1].strip()
-            if candidato:
-                nome = candidato
-            elif i + 1 < len(linhas):
-                nome = linhas[i + 1]
-            break
+    def _parece_nome(candidato):
+        palavras = candidato.split()
+        return (2 <= len(palavras) <= 6
+                and re.match(r'^[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ\s]+$', candidato)
+                and not _NAO_EH_NOME.search(candidato))
 
-    # Estratégia 2: CNH sem rótulo — nome em maiúsculas antes de "DOC IDENTIDADE"
+    # Estratégia 1: rótulo explícito — "NOME", "NOME COMPLETO", "NOME/NAME"
+    # (CNH, RG antigo e CIN usam alguma dessas variações)
+    for i, linha in enumerate(linhas):
+        rotulo = re.match(r'^NOME(\s*COMPLETO)?(\s*/\s*NAME)?\b[:\s]*(.*)$', linha.upper())
+        if rotulo:
+            candidato = rotulo.group(3).strip()
+            if candidato and _parece_nome(candidato):
+                nome = candidato
+            elif not candidato and i + 1 < len(linhas) and _parece_nome(linhas[i + 1].upper()):
+                nome = linhas[i + 1]
+            if nome != "Não encontrado":
+                break
+
+    # Estratégia 2: sem rótulo — nome em maiúsculas nas linhas anteriores a um
+    # campo conhecido (CPF, doc. identidade, filiação ou data de nascimento)
     if nome == "Não encontrado":
         for i, linha in enumerate(linhas):
-            if re.search(r'DOC.?\s*IDENTIDADE|CPF', linha, re.IGNORECASE):
-                # Varre as linhas anteriores em busca de um nome (2 a 4 palavras maiúsculas)
+            if re.search(r'DOC.?\s*IDENTIDADE|CPF|FILIA|NASCIMENTO', linha, re.IGNORECASE):
                 for j in range(i - 1, max(i - 6, -1), -1):
-                    candidato = linhas[j]
-                    palavras = candidato.split()
-                    if (2 <= len(palavras) <= 5
-                            and re.match(r'^[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ\s]+$', candidato)
-                            and not re.search(r'BRASIL|MINIST|DEPART|TRANSIT|HABILI|NACION', candidato)):
-                        nome = candidato
+                    if _parece_nome(linhas[j]):
+                        nome = linhas[j]
                         break
                 break
 
     dados = {
-        "tipo": "cnh",
+        "tipo": "documento",
         "nome": nome,
         "cpf": cpf,
         "data_nascimento": data_nasc,
     }
 
-    print("Dados extraídos da CNH:", dados)
+    print("Dados extraídos do documento:", dados)
     return dados
+
+
+# Alias retrocompatível — código antigo chama extrair_dados_cnh
+extrair_dados_cnh = extrair_dados_documento
 
 
 # ─────────────────────────────────────────────
