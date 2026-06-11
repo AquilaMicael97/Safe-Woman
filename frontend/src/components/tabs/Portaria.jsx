@@ -124,6 +124,7 @@ export default function Portaria({ operador }) {
   const [previewCnh,    setPreviewCnh]    = useState(null)
   const [arquivoMedida, setArquivoMedida] = useState(null)
   const [previewMedida, setPreviewMedida] = useState(null)
+  const [consentiu,     setConsentiu]     = useState(false)
   const [carregando, setCarregando] = useState(false)
   const [resultado,  setResultado]  = useState(null)
   const [medidaInfo, setMedidaInfo] = useState(null)
@@ -170,6 +171,7 @@ export default function Portaria({ operador }) {
   function limpar() {
     limparCnh()
     limparMedida()
+    setConsentiu(false)
     setResultado(null)
     setMedidaInfo(null)
     setErro(null)
@@ -209,7 +211,12 @@ export default function Portaria({ operador }) {
     setErroLiberar(null)
 
     try {
-      const params = new URLSearchParams({ cpf: resultado.cpf, nome: resultado.nome || '' })
+      const params = new URLSearchParams({
+        cpf: resultado.cpf,
+        nome: resultado.nome || '',
+        operador: operador || 'portaria',
+        consentimento: 'true', // ciência LGPD já coletada na verificação do documento
+      })
       const res    = await fetch(`${API_BASE}/api/liberar-entrada?${params}`, { method: 'POST' })
       const data   = await res.json()
 
@@ -238,7 +245,8 @@ export default function Portaria({ operador }) {
     setErroNegar(null)
 
     try {
-      const res  = await fetch(`${API_BASE}/api/entrada-negada?cpf=${encodeURIComponent(resultado.cpf)}`, { method: 'POST' })
+      const paramsNegar = new URLSearchParams({ cpf: resultado.cpf, operador: operador || 'portaria' })
+      const res  = await fetch(`${API_BASE}/api/entrada-negada?${paramsNegar}`, { method: 'POST' })
       const data = await res.json()
 
       if (!res.ok) {
@@ -261,7 +269,7 @@ export default function Portaria({ operador }) {
   }
 
   async function verificar() {
-    if (!arquivoCnh) return
+    if (!arquivoCnh || !consentiu) return
     setCarregando(true)
     setErro(null)
 
@@ -284,11 +292,12 @@ export default function Portaria({ operador }) {
         dadosMedida = dataMedida
       }
 
-      // Etapa 1: verificação OCR da CNH (obrigatória para todos)
+      // Etapa 1: verificação OCR do documento (obrigatória para todos)
       const form = new FormData()
       form.append('foto', arquivoCnh)
+      form.append('consentimento', 'true')
 
-      const res  = await fetch(`${API_BASE}/api/verificar-cnh`, { method: 'POST', body: form })
+      const res  = await fetch(`${API_BASE}/api/verificar-documento`, { method: 'POST', body: form })
       const data = await res.json()
 
       if (!res.ok) {
@@ -362,6 +371,21 @@ export default function Portaria({ operador }) {
               />
             </div>
 
+            {/* LGPD — ciência do cliente sobre o tratamento dos dados */}
+            <label className="flex items-start gap-3 bg-surface border border-white/10 rounded-2xl px-4 py-3.5 mt-5 cursor-pointer hover:border-accent/40 transition-colors">
+              <input
+                type="checkbox"
+                checked={consentiu}
+                onChange={e => setConsentiu(e.target.checked)}
+                className="mt-0.5 w-4 h-4 accent-accent cursor-pointer flex-shrink-0"
+              />
+              <span className="text-xs text-white/55 leading-relaxed">
+                Informei o cliente e ele está <strong className="text-white/75">ciente</strong> de
+                que os dados do documento serão tratados conforme a LGPD (Lei nº 13.709/2018),
+                exclusivamente para a segurança deste evento.
+              </span>
+            </label>
+
             {/* Erro */}
             <AnimatePresence>
               {erro && (
@@ -378,7 +402,7 @@ export default function Portaria({ operador }) {
 
             <button
               onClick={verificar}
-              disabled={!arquivoCnh || carregando}
+              disabled={!arquivoCnh || !consentiu || carregando}
               className="w-full mt-5 bg-accent hover:bg-accent/85 active:scale-[0.98] disabled:opacity-30 text-white font-semibold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
             >
               {carregando ? (
@@ -394,6 +418,12 @@ export default function Portaria({ operador }) {
             {!arquivoCnh && arquivoMedida && (
               <p className="mt-2 text-xs text-warn text-center">
                 A foto do documento é obrigatória para concluir a verificação.
+              </p>
+            )}
+
+            {arquivoCnh && !consentiu && (
+              <p className="mt-2 text-xs text-warn text-center">
+                Marque a ciência do cliente sobre o uso dos dados (LGPD) para continuar.
               </p>
             )}
           </motion.div>

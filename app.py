@@ -546,10 +546,12 @@ def salvar_medida_protetiva(numero_processo, vitima_id, agressor_id, data_emissa
 #  CONTROLE DE PRESENÇA (entrada / saída)
 # ─────────────────────────────────────────────
 
-def registrar_entrada(cpf, nome, tipo='outro'):
+def registrar_entrada(cpf, nome, tipo='outro', consentimento=False):
     """
     Registra a entrada de uma pessoa.
     Se já há uma presença ativa para o CPF, atualiza nome/tipo.
+    `consentimento` marca a ciência LGPD coletada pela portaria — uma vez
+    dado, não é revogado por uma reentrada sem a marcação.
     Retorna (presenca_id, eh_nova_entrada).
     """
     conn = conectar()
@@ -563,15 +565,15 @@ def registrar_entrada(cpf, nome, tipo='outro'):
 
     if existente:
         cur.execute(
-            "UPDATE presencas SET nome = %s, tipo = %s WHERE id = %s",
-            (nome, tipo, existente[0])
+            "UPDATE presencas SET nome = %s, tipo = %s, consentimento_lgpd = (consentimento_lgpd OR %s) WHERE id = %s",
+            (nome, tipo, bool(consentimento), existente[0])
         )
         presenca_id = existente[0]
         nova = False
     else:
         cur.execute(
-            "INSERT INTO presencas (cpf, nome, tipo) VALUES (%s, %s, %s) RETURNING id",
-            (cpf, nome, tipo)
+            "INSERT INTO presencas (cpf, nome, tipo, consentimento_lgpd) VALUES (%s, %s, %s, %s) RETURNING id",
+            (cpf, nome, tipo, bool(consentimento))
         )
         presenca_id = cur.fetchone()[0]
         nova = True

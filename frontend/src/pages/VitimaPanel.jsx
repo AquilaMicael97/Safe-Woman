@@ -33,6 +33,7 @@ export default function VitimaPanel() {
 
   const [arquivo, setArquivo] = useState(null)
   const [preview, setPreview] = useState(null)
+  const [consentiu, setConsentiu] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [medidas, setMedidas] = useState([])
   const [carregando, setCarregando] = useState(true)
@@ -90,11 +91,12 @@ export default function VitimaPanel() {
   }
 
   async function enviarMedida() {
-    if (!arquivo) return
+    if (!arquivo || !consentiu) return
     setEnviando(true)
     try {
       const form = new FormData()
       form.append('foto', arquivo)
+      form.append('consentimento', 'true')
       const res = await fetch(`${API_BASE}/api/vitima/pre-cadastro-medida`, {
         method: 'POST',
         headers: authHeader(),
@@ -103,6 +105,7 @@ export default function VitimaPanel() {
       const data = await res.json()
       if (res.ok) {
         limpar()
+        setConsentiu(false)
         mostrarToast('✅ Medida cadastrada! Será ativada na entrada.', 'sucesso')
         await carregarMedidas()
       } else {
@@ -196,9 +199,25 @@ export default function VitimaPanel() {
             </div>
           )}
 
+          {/* LGPD — autorização expressa da titular antes do envio */}
+          <label className="flex items-start gap-3 bg-surface border border-white/10 rounded-2xl px-4 py-3.5 mb-4 cursor-pointer hover:border-vitima/40 transition-colors">
+            <input
+              type="checkbox"
+              checked={consentiu}
+              onChange={e => setConsentiu(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-vitima cursor-pointer flex-shrink-0"
+            />
+            <span className="text-xs text-white/55 leading-relaxed">
+              Autorizo o uso das informações deste documento <strong className="text-white/75">exclusivamente
+              para minha proteção</strong>, conforme a Lei Geral de Proteção de Dados
+              (LGPD — Lei nº 13.709/2018). Os dados serão usados apenas para o cruzamento
+              de segurança na entrada de eventos e são apagados conforme a política de retenção.
+            </span>
+          </label>
+
           <button
             onClick={enviarMedida}
-            disabled={!arquivo || enviando}
+            disabled={!arquivo || !consentiu || enviando}
             className="w-full bg-vitima hover:bg-vitima/85 active:scale-[0.98] disabled:opacity-30 text-white font-semibold py-3.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2 mb-8"
           >
             {enviando ? (

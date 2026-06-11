@@ -120,7 +120,7 @@ export default function Historico({ token }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/8">
-                {['Nome', 'CPF', 'Tipo', 'Entrada', 'Saída', 'Status'].map(h => (
+                {['Nome', 'CPF', 'Tipo', 'Entrada', 'Saída', 'Status', 'LGPD'].map(h => (
                   <th
                     key={h}
                     className="text-left px-4 py-3 text-[11px] font-bold text-white/25 uppercase tracking-widest whitespace-nowrap"
@@ -132,10 +132,10 @@ export default function Historico({ token }) {
             </thead>
             <tbody>
               {carregando ? (
-                <tr><td colSpan={6} className="text-center py-14 text-white/20 text-sm">Carregando...</td></tr>
+                <tr><td colSpan={7} className="text-center py-14 text-white/20 text-sm">Carregando...</td></tr>
               ) : filtrado.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-14 text-white/20 text-sm">
+                  <td colSpan={7} className="text-center py-14 text-white/20 text-sm">
                     {busca ? 'Nenhum resultado.' : 'Nenhum registro nesse dia.'}
                   </td>
                 </tr>
@@ -168,6 +168,13 @@ export default function Historico({ token }) {
                         reg.saida_em ? 'bg-white/8 text-white/35' : 'bg-safe/12 text-safe'
                       }`}>
                         {reg.saida_em ? 'Saiu' : 'No local'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${
+                        reg.consentimento ? 'bg-safe/12 text-safe' : 'bg-warn/15 text-warn'
+                      }`}>
+                        {reg.consentimento ? 'Sim' : 'Não'}
                       </span>
                     </td>
                   </motion.tr>

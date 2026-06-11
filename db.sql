@@ -57,6 +57,11 @@ CREATE TABLE IF NOT EXISTS presencas (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_presenca_ativa
     ON presencas(cpf) WHERE saida_em IS NULL;
 
+-- LGPD: registro de consentimento de uso dos dados
+ALTER TABLE pre_cadastros_medida ADD COLUMN IF NOT EXISTS consentimento_lgpd BOOLEAN DEFAULT FALSE;
+ALTER TABLE pre_cadastros_medida ADD COLUMN IF NOT EXISTS consentimento_em   TIMESTAMPTZ;
+ALTER TABLE presencas            ADD COLUMN IF NOT EXISTS consentimento_lgpd BOOLEAN DEFAULT FALSE;
+
 CREATE TABLE IF NOT EXISTS usuarios_sistema (
     id         SERIAL PRIMARY KEY,
     usuario    VARCHAR(60)  UNIQUE NOT NULL,

@@ -359,9 +359,17 @@ async def vitima_login(request: Request):
 @server.post("/api/vitima/pre-cadastro-medida")
 async def vitima_pre_cadastro(
     foto: UploadFile = File(...),
+    consentimento: str = Form(default=""),
     token: str = Depends(_requer_portaria),
 ):
-    """Vítima faz upload da medida protetiva de casa. Fica pendente até confirmar CNH na entrada."""
+    """Vítima faz upload da medida protetiva de casa. Fica pendente até confirmar o documento na entrada."""
+    # LGPD: o upload só é aceito com a autorização expressa da titular
+    if consentimento.lower() not in ("true", "sim", "1"):
+        raise HTTPException(
+            status_code=422,
+            detail="É necessário autorizar o uso do documento (LGPD) para concluir o cadastro.",
+        )
+
     tmp_path = await _salvar_temp(foto)
     try:
         dados = ocr.extrair_dados_medida_protetiva(str(tmp_path))
@@ -376,8 +384,9 @@ async def vitima_pre_cadastro(
         cur  = conn.cursor()
         cur.execute("""
             INSERT INTO pre_cadastros_medida
-                (numero_processo, nome_vitima, cpf_vitima, nome_agressor, cpf_agressor, data_emissao, vara)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
+                (numero_processo, nome_vitima, cpf_vitima, nome_agressor, cpf_agressor, data_emissao, vara,
+                 consentimento_lgpd, consentimento_em)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,TRUE,NOW())
             ON CONFLICT (numero_processo) DO NOTHING
             RETURNING id
         """, (dados["numero_processo"], dados["nome_vitima"], ocr.sanitizar_cpf(dados["cpf_vitima"]),
@@ -435,12 +444,13 @@ def _normalizar_cpf(cpf: str) -> str:
     return cpf
 
 
-def _montar_resposta_verificacao(cpf, nome, data_nascimento, resultado):
+def _montar_resposta_verificacao(cpf, nome, data_nascimento, resultado, consentimento=False):
     """
-    Monta o dict de resposta unificado para verificação de CNH/CPF.
+    Monta o dict de resposta unificado para verificação de documento/CPF.
     Determina o nível de alerta considerando:
       - Se tem medida protetiva ativa (regra base)
       - Se a contraparte está ATUALMENTE dentro do local (urgência extra)
+    `consentimento` registra a ciência LGPD coletada pela portaria.
     """
     contrapartes = ocr.verificar_contrapartes_presentes(cpf)
 
@@ -474,7 +484,7 @@ def _montar_resposta_verificacao(cpf, nome, data_nascimento, resultado):
 
     # Registra entrada automaticamente (exceto vítima em espera)
     if cpf and not entrada_pendente:
-        ocr.registrar_entrada(cpf, nome or "Desconhecido", tipo_presenca)
+        ocr.registrar_entrada(cpf, nome or "Desconhecido", tipo_presenca, consentimento=consentimento)
 
     # Alerta persistido para o painel admin (vermelho sempre; amarelo só se urgente)
     if nivel.startswith("vermelho"):
@@ -679,7 +689,7 @@ def _ativar_pre_cadastros(cpf_vitima: str, nome_vitima: str = None):
 
 @server.post("/api/verificar-documento")
 @server.post("/api/verificar-cnh")  # alias retrocompatível
-async def verificar_documento(foto: UploadFile = File(...)):
+async def verificar_documento(foto: UploadFile = File(...), consentimento: str = Form(default="")):
     """
     Lê o documento de identificação, verifica medidas protetivas e registra
     entrada. Cruza com presenças ativas para detectar urgência.
@@ -712,7 +722,8 @@ async def verificar_documento(foto: UploadFile = File(...)):
 
         resultado = ocr.verificar_conflito_por_cpf(dados["cpf"])
         return _montar_resposta_verificacao(
-            dados["cpf"], dados.get("nome"), dados.get("data_nascimento"), resultado
+            dados["cpf"], dados.get("nome"), dados.get("data_nascimento"), resultado,
+            consentimento=consentimento.lower() in ("true", "sim", "1"),
         )
 
     except Exception as e:
@@ -728,13 +739,13 @@ async def verificar_documento(foto: UploadFile = File(...)):
 # ─────────────────────────────────────────────
 
 @server.get("/api/verificar-cpf")
-async def verificar_cpf_manual(cpf: str = Query(...)):
+async def verificar_cpf_manual(cpf: str = Query(...), consentimento: bool = Query(default=False)):
     try:
         cpf_fmt   = _normalizar_cpf(cpf)
         resultado = ocr.verificar_conflito_por_cpf(cpf_fmt)
         nome      = resultado.get("vitima_info", {}) or resultado.get("agressor_info", {})
         nome_str  = nome.get("nome", "") if nome else ""
-        return _montar_resposta_verificacao(cpf_fmt, nome_str, "", resultado)
+        return _montar_resposta_verificacao(cpf_fmt, nome_str, "", resultado, consentimento=consentimento)
 
     except Exception as e:
         return JSONResponse(status_code=500, content={
@@ -782,7 +793,12 @@ async def entrada_negada(cpf: str = Query(...), operador: str = Query(default="p
 # ─────────────────────────────────────────────
 
 @server.post("/api/liberar-entrada")
-async def liberar_entrada(cpf: str = Query(...), nome: str = Query(default=""), operador: str = Query(default="portaria")):
+async def liberar_entrada(
+    cpf: str = Query(...),
+    nome: str = Query(default=""),
+    operador: str = Query(default="portaria"),
+    consentimento: bool = Query(default=False),
+):
     """
     Libera a entrada da vítima que ficou em espera porque o agressor estava
     no local. Reconfere NO SERVIDOR se algum agressor com medida ativa contra
@@ -801,7 +817,7 @@ async def liberar_entrada(cpf: str = Query(...), nome: str = Query(default=""), 
                                       "Registre a saída do agressor antes de liberar.",
             })
 
-        ocr.registrar_entrada(cpf_fmt, nome or "Desconhecido", "vitima")
+        ocr.registrar_entrada(cpf_fmt, nome or "Desconhecido", "vitima", consentimento=consentimento)
         _auditar(operador, "liberar_entrada", f"Entrada de vítima liberada: {nome or cpf_fmt} (CPF {cpf_fmt})")
         return {
             "status"  : "ok",
@@ -1008,30 +1024,23 @@ async def admin_historico(
     try:
         conn = ocr.conectar()
         cur  = conn.cursor()
-        if data:
-            cur.execute("""
-                SELECT cpf, nome, tipo, entrada_em, saida_em
-                FROM   presencas
-                WHERE  entrada_em::date = %s::date
-                ORDER  BY entrada_em DESC
-            """, (data,))
-        else:
-            cur.execute("""
-                SELECT cpf, nome, tipo, entrada_em, saida_em
-                FROM   presencas
-                WHERE  entrada_em::date = CURRENT_DATE
-                ORDER  BY entrada_em DESC
-            """)
+        cur.execute("""
+            SELECT cpf, nome, tipo, entrada_em, saida_em, consentimento_lgpd
+            FROM   presencas
+            WHERE  entrada_em::date = COALESCE(%s::date, CURRENT_DATE)
+            ORDER  BY entrada_em DESC
+        """, (data,))
         rows = cur.fetchall()
         cur.close()
         conn.close()
         historico = [
             {
-                "cpf"       : r[0],
-                "nome"      : r[1],
-                "tipo"      : r[2],
-                "entrada_em": str(r[3]) if r[3] else None,
-                "saida_em"  : str(r[4]) if r[4] else None,
+                "cpf"          : r[0],
+                "nome"         : r[1],
+                "tipo"         : r[2],
+                "entrada_em"   : str(r[3]) if r[3] else None,
+                "saida_em"     : str(r[4]) if r[4] else None,
+                "consentimento": bool(r[5]),
             }
             for r in rows
         ]
@@ -1336,7 +1345,7 @@ async def admin_historico_export(
         conn = ocr.conectar()
         cur  = conn.cursor()
         cur.execute("""
-            SELECT cpf, nome, tipo, entrada_em, saida_em
+            SELECT cpf, nome, tipo, entrada_em, saida_em, consentimento_lgpd
             FROM   presencas
             WHERE  entrada_em::date = COALESCE(%s::date, CURRENT_DATE)
             ORDER  BY entrada_em DESC
@@ -1347,9 +1356,10 @@ async def admin_historico_export(
         import csv, io
         buffer = io.StringIO()
         writer = csv.writer(buffer, delimiter=";")
-        writer.writerow(["CPF", "Nome", "Tipo", "Entrada", "Saída"])
+        writer.writerow(["CPF", "Nome", "Tipo", "Entrada", "Saída", "Consentimento LGPD"])
         for r in rows:
-            writer.writerow([r[0], r[1] or "", r[2], str(r[3]) if r[3] else "", str(r[4]) if r[4] else ""])
+            writer.writerow([r[0], r[1] or "", r[2], str(r[3]) if r[3] else "", str(r[4]) if r[4] else "",
+                             "Sim" if r[5] else "Não"])
 
         _auditar(_usuario_do_token(token), "exportar_historico", f"Exportação CSV ({data or 'hoje'}, {len(rows)} registros)")
         nome_arquivo = f"historico_{data or 'hoje'}.csv"
