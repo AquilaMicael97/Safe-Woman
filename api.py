@@ -363,8 +363,13 @@ def _montar_resposta_verificacao(cpf, nome, data_nascimento, resultado):
     else:
         tipo_presenca = "outro"
 
-    # Registra entrada automaticamente
-    if cpf:
+    # Vítima com agressor dentro NÃO entra automaticamente: fica em espera
+    # até a segurança retirar o agressor e a portaria liberar via
+    # /api/liberar-entrada (que reconfere a presença do agressor).
+    entrada_pendente = bool(resultado["eh_vitima"] and not resultado["alerta"] and agressores_dentro)
+
+    # Registra entrada automaticamente (exceto vítima em espera)
+    if cpf and not entrada_pendente:
         ocr.registrar_entrada(cpf, nome or "Desconhecido", tipo_presenca)
 
     return {
@@ -379,6 +384,7 @@ def _montar_resposta_verificacao(cpf, nome, data_nascimento, resultado):
         "medidas_ativas"    : resultado["medidas_ativas"],
         "vitimas_dentro"    : vitimas_dentro,
         "agressores_dentro" : agressores_dentro,
+        "entrada_pendente"  : entrada_pendente,
     }
 
 
@@ -651,6 +657,43 @@ async def entrada_negada(cpf: str = Query(...)):
     except Exception as e:
         return JSONResponse(status_code=500, content={
             "status": "erro", "mensagem": f"Erro ao cancelar entrada: {str(e)}"
+        })
+
+
+# ─────────────────────────────────────────────
+#  ENDPOINT 3.6 — Liberar Entrada da Vítima (após saída do agressor)
+# ─────────────────────────────────────────────
+
+@server.post("/api/liberar-entrada")
+async def liberar_entrada(cpf: str = Query(...), nome: str = Query(default="")):
+    """
+    Libera a entrada da vítima que ficou em espera porque o agressor estava
+    no local. Reconfere NO SERVIDOR se algum agressor com medida ativa contra
+    ela ainda está dentro — só registra a entrada se o local estiver seguro.
+    """
+    try:
+        cpf_fmt      = _normalizar_cpf(cpf)
+        contrapartes = ocr.verificar_contrapartes_presentes(cpf_fmt)
+
+        if contrapartes["agressores_dentro"]:
+            nomes = ", ".join(a["nome"] for a in contrapartes["agressores_dentro"])
+            return JSONResponse(status_code=409, content={
+                "status"            : "erro",
+                "agressores_dentro" : contrapartes["agressores_dentro"],
+                "mensagem"          : f"Não liberado: {nomes} ainda consta no local. "
+                                      "Registre a saída do agressor antes de liberar.",
+            })
+
+        ocr.registrar_entrada(cpf_fmt, nome or "Desconhecido", "vitima")
+        return {
+            "status"  : "ok",
+            "cpf"     : cpf_fmt,
+            "mensagem": f"Entrada liberada para {nome or cpf_fmt}.",
+        }
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={
+            "status": "erro", "mensagem": f"Erro ao liberar entrada: {str(e)}"
         })
 
 

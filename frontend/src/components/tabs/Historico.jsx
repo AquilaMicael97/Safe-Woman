@@ -111,7 +111,9 @@ export default function Historico() {
                       <span className={`inline-block text-[11px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${
                         ['Alerta', 'Entrada negada'].includes(reg.veredito)
                           ? 'bg-danger/15 text-danger'
-                          : 'bg-safe/12 text-safe'
+                          : reg.veredito === 'Em espera'
+                            ? 'bg-warn/15 text-warn'
+                            : 'bg-safe/12 text-safe'
                       }`}>
                         {reg.veredito}
                       </span>

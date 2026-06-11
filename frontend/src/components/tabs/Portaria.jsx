@@ -131,6 +131,11 @@ export default function Portaria({ operador }) {
   const [negandoEntrada, setNegandoEntrada] = useState(false)
   const [entradaNegada,  setEntradaNegada]  = useState(false)
   const [erroNegar,      setErroNegar]      = useState(null)
+  const [saidasOk,        setSaidasOk]        = useState([])   // CPFs de agressores com saída registrada
+  const [saindoCpf,       setSaindoCpf]       = useState(null)
+  const [liberando,       setLiberando]       = useState(false)
+  const [entradaLiberada, setEntradaLiberada] = useState(false)
+  const [erroLiberar,     setErroLiberar]     = useState(null)
   const inputCnhRef    = useRef(null)
   const inputMedidaRef = useRef(null)
 
@@ -171,6 +176,60 @@ export default function Portaria({ operador }) {
     setNegandoEntrada(false)
     setEntradaNegada(false)
     setErroNegar(null)
+    setSaidasOk([])
+    setSaindoCpf(null)
+    setLiberando(false)
+    setEntradaLiberada(false)
+    setErroLiberar(null)
+  }
+
+  async function registrarSaidaAgressor(cpf) {
+    setSaindoCpf(cpf)
+    setErroLiberar(null)
+
+    try {
+      const res  = await fetch(`${API_BASE}/api/saida-cpf?cpf=${encodeURIComponent(cpf)}`, { method: 'POST' })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErroLiberar(data.mensagem || data.detail || 'Erro ao registrar a saída do agressor.')
+        return
+      }
+      setSaidasOk(prev => [...prev, cpf])
+    } catch {
+      setErroLiberar('Erro de conexão com o servidor.')
+    } finally {
+      setSaindoCpf(null)
+    }
+  }
+
+  async function liberarEntradaVitima() {
+    if (!resultado?.cpf) return
+    setLiberando(true)
+    setErroLiberar(null)
+
+    try {
+      const params = new URLSearchParams({ cpf: resultado.cpf, nome: resultado.nome || '' })
+      const res    = await fetch(`${API_BASE}/api/liberar-entrada?${params}`, { method: 'POST' })
+      const data   = await res.json()
+
+      if (!res.ok) {
+        setErroLiberar(data.mensagem || data.detail || 'Erro ao liberar a entrada.')
+        return
+      }
+
+      setEntradaLiberada(true)
+      adicionarRegistro({
+        operador: operador || 'Desconhecido',
+        nome:     resultado.nome || '',
+        cpf:      resultado.cpf  || '',
+        veredito: 'Liberado',
+      })
+    } catch {
+      setErroLiberar('Erro de conexão com o servidor.')
+    } finally {
+      setLiberando(false)
+    }
   }
 
   async function negarEntrada() {
@@ -245,7 +304,7 @@ export default function Portaria({ operador }) {
         operador: operador || 'Desconhecido',
         nome:     data.nome     || '',
         cpf:      data.cpf      || '',
-        veredito: data.alerta   ? 'Alerta' : 'Liberado',
+        veredito: data.alerta ? 'Alerta' : (data.entrada_pendente ? 'Em espera' : 'Liberado'),
       })
     } catch {
       setErro('Erro de conexão com o servidor. Verifique se o backend está rodando.')
@@ -406,6 +465,72 @@ export default function Portaria({ operador }) {
                 <InfoRow label="Agressor (medida)" valor={medidaInfo.nome_agressor} />
               )}
             </div>
+
+            {/* Entrada em espera — vítima aguarda a saída do agressor */}
+            {resultado.entrada_pendente && (
+              <div className="mb-4">
+                {entradaLiberada ? (
+                  <div className="flex items-center gap-2 bg-safe/10 border border-safe/30 rounded-xl px-4 py-3 text-xs font-semibold text-safe">
+                    <CheckCircle size={14} className="shrink-0" />
+                    Entrada da vítima liberada e registrada.
+                  </div>
+                ) : (
+                  <div className="bg-surface border border-warn/25 rounded-2xl p-4">
+                    <p className="text-xs font-bold text-warn mb-3">
+                      Entrada em espera — acione a segurança para retirar o agressor antes de liberar.
+                    </p>
+
+                    <div className="space-y-2 mb-3">
+                      {(resultado.agressores_dentro || []).map(a => (
+                        <div
+                          key={a.cpf}
+                          className="flex items-center justify-between gap-3 bg-danger/8 border border-danger/20 rounded-xl px-3 py-2.5"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold text-white truncate">{a.nome}</p>
+                            <p className="text-[10px] text-white/40 font-mono">{a.cpf}</p>
+                          </div>
+                          {saidasOk.includes(a.cpf) ? (
+                            <span className="text-[11px] font-bold text-safe whitespace-nowrap">
+                              Saída registrada
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => registrarSaidaAgressor(a.cpf)}
+                              disabled={saindoCpf === a.cpf}
+                              className="text-[11px] font-bold text-danger border border-danger/35 hover:bg-danger/15 disabled:opacity-50 px-3 py-1.5 rounded-lg transition-all whitespace-nowrap"
+                            >
+                              {saindoCpf === a.cpf ? 'Registrando...' : 'Registrar saída'}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={liberarEntradaVitima}
+                      disabled={liberando}
+                      className="w-full flex items-center justify-center gap-2 bg-safe/15 border border-safe/35 hover:bg-safe/25 disabled:opacity-50 text-safe font-semibold py-3 rounded-xl transition-all text-sm"
+                    >
+                      {liberando ? (
+                        <>
+                          <span className="w-4 h-4 border-2 border-safe/30 border-t-safe rounded-full animate-spin" />
+                          Verificando local...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={14} />
+                          Liberar entrada da vítima
+                        </>
+                      )}
+                    </button>
+                    {erroLiberar && (
+                      <p className="mt-2 text-xs text-danger">{erroLiberar}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Entrada negada — desfaz o registro automático de presença */}
             {resultado.alerta && resultado.cpf && (
